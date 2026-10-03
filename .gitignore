@@ -39,3 +39,19 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Continuous Native Generation: never commit generated native projects
+/android
+/ios
+
+# Patient data must never enter git: no photos or videos anywhere in the repo.
+# (App icons are PNG under assets/.)
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.heic
+*.HEIC
+*.mp4
+*.mov
+_local/

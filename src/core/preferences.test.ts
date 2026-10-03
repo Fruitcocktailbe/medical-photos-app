@@ -15,8 +15,8 @@ describe('favourites', () => {
     expect(toggle(['a', 'b'], 'a')).toEqual(['b']);
   });
 
-  it('starred first in your order, then frequent (not starred), then the rest with the region first', () => {
-    const s = procedureSections({ starred: ['mastopexy', 'facelift'], frequent: ['facelift', 'abdominoplasty', 'rhinoplasty'], region: 'breast' });
+  it('starred first in your order, then frequent (not starred), then the rest with the treated areas first', () => {
+    const s = procedureSections({ starred: ['mastopexy', 'facelift'], frequent: ['facelift', 'abdominoplasty', 'rhinoplasty'], subs: ['breasts'] });
     const [starred, frequent, all] = ids(s);
     expect(starred).toEqual(['starred', ['mastopexy', 'facelift']]);
     expect(frequent).toEqual(['frequent', ['abdominoplasty', 'rhinoplasty']]);
@@ -34,10 +34,14 @@ describe('favourites', () => {
     ]);
   });
 
-  it('can limit to one region (inline picker on the visit screen)', () => {
-    const s = procedureSections({ starred: ['facelift', 'mastopexy'], frequent: [], region: 'breast', onlyRegion: true });
+  it('can limit to the treated areas (inline picker on the visit screen), keeping body-map procedures', () => {
+    const s = procedureSections({ starred: ['facelift', 'mastopexy'], frequent: [], subs: ['breasts'], onlySubs: true });
     expect(s[0].items.map((p) => p.id)).toEqual(['mastopexy']);
-    expect(s.flatMap((x) => x.items).every((p) => p.region === 'breast')).toBe(true);
+    const all = s.flatMap((x) => x.items);
+    expect(all.every((p) => p.subs.length === 0 || p.subs.includes('breasts'))).toBe(true);
+    expect(all.map((p) => p.id)).toContain('breast-reconstruction-diep');
+    expect(all.map((p) => p.id)).toContain('rpni');
+    expect(all.map((p) => p.id)).not.toContain('facelift');
   });
 
   it('ignores unknown ids and drops empty sections', () => {

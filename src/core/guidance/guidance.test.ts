@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { CaptureGeometry, Episode, Session, Shot } from '../types';
 import { resolveTarget, textbookGeometry } from './targets';
 import { angleDelta, evaluate, smooth } from './evaluate';
-import { bodyYaw, classifyView, faceGeometry, poseGeometry } from './detectors';
-import { REGION_VIEWS } from '../catalog/catalog';
+import { bodyYaw, classifyStep, faceGeometry, poseGeometry, yawBucket } from './detectors';
+import { viewSequence } from '../catalog/catalog';
 
 const episode: Episode = {
-  id: 'ep1', patientId: 'p1', region: 'face', procedure: null, secondary: [], surgeryDate: null,
+  id: 'ep1', patientId: 'p1', areas: [{ sub: 'face' }], procedure: null, secondary: [], surgeryDate: null,
   startedAt: '2026-10-03', folderName: '2026-10_face',
 };
 
@@ -24,15 +24,15 @@ const session = (id: string, date: string, visit: Session['visit'], shots: Shot[
 
 describe('reference rule: textbook on a first visit, pre-op geometry on follow-ups', () => {
   it('first visit → textbook angle', () => {
-    const t = resolveTarget('oblique-L', episode, [], { id: 'now', date: '2026-10-03' });
+    const t = resolveTarget('face:oblique-L', episode, [], { id: 'now', date: '2026-10-03' });
     expect(t.source).toBe('textbook');
     expect(t.geometry.yaw).toBe(45);
     expect(t.reference).toBeUndefined();
   });
 
   it('post-op → exact geometry of the pre-op photo, not the textbook value', () => {
-    const pre = session('pre', '2026-10-03', 'preop', [shot('oblique-L', 1, geo(41.5))]);
-    const t = resolveTarget('oblique-L', episode, [pre], { id: 'post', date: '2026-11-14' });
+    const pre = session('pre', '2026-10-03', 'preop', [shot('face:oblique-L', 1, geo(41.5))]);
+    const t = resolveTarget('face:oblique-L', episode, [pre], { id: 'post', date: '2026-11-14' });
     expect(t.source).toBe('reference');
     expect(t.geometry).toMatchObject({ yaw: 41.5, pitch: 2, roll: -1, distance: 0.41, centerX: 0.03, centerY: -0.02 });
     expect(t.reference?.sessionId).toBe('pre');
@@ -40,82 +40,82 @@ describe('reference rule: textbook on a first visit, pre-op geometry on follow-u
   });
 
   it('later post-op still matches the pre-op, not the previous post-op', () => {
-    const pre = session('pre', '2026-10-03', 'preop', [shot('lateral-L', 1, geo(88))]);
-    const post6w = session('p6', '2026-11-14', 'postop', [shot('lateral-L', 1, geo(93))], { interval: '6w' });
-    const t = resolveTarget('lateral-L', episode, [pre, post6w], { id: 'p3m', date: '2027-01-10' });
+    const pre = session('pre', '2026-10-03', 'preop', [shot('face:lateral-L', 1, geo(88))]);
+    const post6w = session('p6', '2026-11-14', 'postop', [shot('face:lateral-L', 1, geo(93))], { interval: '6w' });
+    const t = resolveTarget('face:lateral-L', episode, [pre, post6w], { id: 'p3m', date: '2027-01-10' });
     expect(t.reference?.sessionId).toBe('pre');
     expect(t.geometry.yaw).toBe(88);
   });
 
   it('uses the latest pre-op when there are several', () => {
-    const preA = session('preA', '2026-09-01', 'preop', [shot('frontal', 1, geo(1))]);
-    const preB = session('preB', '2026-10-03', 'preop', [shot('frontal', 1, geo(-2))]);
-    const t = resolveTarget('frontal', episode, [preB, preA], { id: 'post', date: '2026-11-14' });
+    const preA = session('preA', '2026-09-01', 'preop', [shot('face:frontal', 1, geo(1))]);
+    const preB = session('preB', '2026-10-03', 'preop', [shot('face:frontal', 1, geo(-2))]);
+    const t = resolveTarget('face:frontal', episode, [preB, preA], { id: 'post', date: '2026-11-14' });
     expect(t.reference?.sessionId).toBe('preB');
   });
 
   it('prefers the shot marked as reference, else the last one taken', () => {
     const pre = session('pre', '2026-10-03', 'preop', [
-      shot('frontal', 1, geo(3), { isReference: true }),
-      shot('frontal', 2, geo(-4)),
+      shot('face:frontal', 1, geo(3), { isReference: true }),
+      shot('face:frontal', 2, geo(-4)),
     ]);
-    expect(resolveTarget('frontal', episode, [pre], { id: 'x', date: '2026-12-01' }).geometry.yaw).toBe(3);
-    const pre2 = session('pre', '2026-10-03', 'preop', [shot('frontal', 1, geo(3)), shot('frontal', 2, geo(-4))]);
-    expect(resolveTarget('frontal', episode, [pre2], { id: 'x', date: '2026-12-01' }).geometry.yaw).toBe(-4);
+    expect(resolveTarget('face:frontal', episode, [pre], { id: 'x', date: '2026-12-01' }).geometry.yaw).toBe(3);
+    const pre2 = session('pre', '2026-10-03', 'preop', [shot('face:frontal', 1, geo(3)), shot('face:frontal', 2, geo(-4))]);
+    expect(resolveTarget('face:frontal', episode, [pre2], { id: 'x', date: '2026-12-01' }).geometry.yaw).toBe(-4);
   });
 
   it('falls back to the consult when there is no pre-op', () => {
-    const consult = session('c', '2026-09-01', 'consult', [shot('frontal', 1, geo(2))]);
-    expect(resolveTarget('frontal', episode, [consult], { id: 'x', date: '2026-12-01' }).reference?.sessionId).toBe('c');
+    const consult = session('c', '2026-09-01', 'consult', [shot('face:frontal', 1, geo(2))]);
+    expect(resolveTarget('face:frontal', episode, [consult], { id: 'x', date: '2026-12-01' }).reference?.sessionId).toBe('c');
   });
 
   it('pre-op wins over a more recent consult', () => {
-    const pre = session('pre', '2026-09-01', 'preop', [shot('frontal', 1, geo(2))]);
-    const consult = session('c', '2026-09-20', 'consult', [shot('frontal', 1, geo(9))]);
-    expect(resolveTarget('frontal', episode, [pre, consult], { id: 'x', date: '2026-12-01' }).reference?.sessionId).toBe('pre');
+    const pre = session('pre', '2026-09-01', 'preop', [shot('face:frontal', 1, geo(2))]);
+    const consult = session('c', '2026-09-20', 'consult', [shot('face:frontal', 1, geo(9))]);
+    expect(resolveTarget('face:frontal', episode, [pre, consult], { id: 'x', date: '2026-12-01' }).reference?.sessionId).toBe('pre');
   });
 
   it('honours a manual reference override on the episode', () => {
-    const pre = session('pre', '2026-10-03', 'preop', [shot('frontal', 1, geo(2))]);
-    const consult = session('c', '2026-09-01', 'consult', [shot('frontal', 1, geo(9))]);
-    const t = resolveTarget('frontal', { ...episode, referenceSessionId: 'c' }, [pre, consult], { id: 'x', date: '2026-12-01' });
+    const pre = session('pre', '2026-10-03', 'preop', [shot('face:frontal', 1, geo(2))]);
+    const consult = session('c', '2026-09-01', 'consult', [shot('face:frontal', 1, geo(9))]);
+    const t = resolveTarget('face:frontal', { ...episode, referenceSessionId: 'c' }, [pre, consult], { id: 'x', date: '2026-12-01' });
     expect(t.reference?.sessionId).toBe('c');
   });
 
   it('pre-op shot without geometry → textbook target, but still a ghost reference', () => {
-    const pre = session('pre', '2026-10-03', 'preop', [shot('basal', 1)]);
-    const t = resolveTarget('basal', episode, [pre], { id: 'x', date: '2026-12-01' });
+    const pre = session('pre', '2026-10-03', 'preop', [shot('nose:basal', 1)]);
+    const t = resolveTarget('nose:basal', episode, [pre], { id: 'x', date: '2026-12-01' });
     expect(t.source).toBe('textbook');
-    expect(t.reference?.shot.file).toBe('basal_1.jpg');
+    expect(t.reference?.shot.file).toBe('nose:basal_1.jpg');
   });
 
   it('ignores other episodes and later sessions', () => {
-    const other = { ...session('o', '2026-01-01', 'preop', [shot('frontal', 1, geo(20))]), episodeId: 'ep2' };
-    const later = session('l', '2027-05-01', 'preop', [shot('frontal', 1, geo(20))]);
-    expect(resolveTarget('frontal', episode, [other, later], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');
+    const other = { ...session('o', '2026-01-01', 'preop', [shot('face:frontal', 1, geo(20))]), episodeId: 'ep2' };
+    const later = session('l', '2027-05-01', 'preop', [shot('face:frontal', 1, geo(20))]);
+    expect(resolveTarget('face:frontal', episode, [other, later], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');
   });
 
   it('patient entered the app already post-op: the first documented visit is the baseline', () => {
-    const post6w = session('p6', '2026-11-14', 'postop', [shot('lateral-L', 1, geo(86))], { interval: '6w' });
-    const post3m = session('p3', '2027-01-10', 'postop', [shot('lateral-L', 1, geo(95))], { interval: '3m' });
-    const t = resolveTarget('lateral-L', episode, [post3m, post6w], { id: 'p1y', date: '2027-10-01' });
+    const post6w = session('p6', '2026-11-14', 'postop', [shot('face:lateral-L', 1, geo(86))], { interval: '6w' });
+    const post3m = session('p3', '2027-01-10', 'postop', [shot('face:lateral-L', 1, geo(95))], { interval: '3m' });
+    const t = resolveTarget('face:lateral-L', episode, [post3m, post6w], { id: 'p1y', date: '2027-10-01' });
     expect(t.source).toBe('reference');
     expect(t.reference?.sessionId).toBe('p6');
     expect(t.geometry.yaw).toBe(86);
   });
 
   it('the very first documented visit still gets the textbook target', () => {
-    expect(resolveTarget('lateral-L', episode, [], { id: 'p6', date: '2026-11-14' }).source).toBe('textbook');
+    expect(resolveTarget('face:lateral-L', episode, [], { id: 'p6', date: '2026-11-14' }).source).toBe('textbook');
   });
 
   it('a pre-op without the requested view does not become the reference', () => {
-    const pre = session('pre', '2026-10-03', 'preop', [shot('frontal', 1, geo(0))]);
-    expect(resolveTarget('lateral-R', episode, [pre], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');
+    const pre = session('pre', '2026-10-03', 'preop', [shot('face:frontal', 1, geo(0))]);
+    expect(resolveTarget('face:lateral-R', episode, [pre], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');
   });
 });
 
 describe('evaluate', () => {
-  const target = resolveTarget('oblique-L', episode, [session('pre', '2026-10-03', 'preop', [shot('oblique-L', 1, geo(42))])], { id: 'x', date: '2026-12-01' });
+  const target = resolveTarget('face:oblique-L', episode, [session('pre', '2026-10-03', 'preop', [shot('face:oblique-L', 1, geo(42))])], { id: 'x', date: '2026-12-01' });
 
   it('is green when every axis is inside tolerance', () => {
     const r = evaluate(geo(44), target);
@@ -151,9 +151,9 @@ describe('evaluate', () => {
   });
 
   it('textbook targets have looser framing than reference targets', () => {
-    const tb = resolveTarget('oblique-L', episode, [], { id: 'x', date: '2026-10-03' });
+    const tb = resolveTarget('face:oblique-L', episode, [], { id: 'x', date: '2026-10-03' });
     expect(evaluate({ ...geo(45), distance: 0.35 * 1.2 }, tb).allOk).toBe(true);
-    expect(textbookGeometry('lateral-R').yaw).toBe(-90);
+    expect(textbookGeometry('face:lateral-R').yaw).toBe(-90);
   });
 });
 
@@ -182,21 +182,30 @@ describe('detectors', () => {
     expect(g.centerX).toBeCloseTo(0);
   });
 
-  it('classifies face views and refuses the grey zones', () => {
-    const face = REGION_VIEWS.face;
-    expect(classifyView({ yaw: 4, source: 'face' }, face)).toBe('frontal');
-    expect(classifyView({ yaw: 3, source: 'face' }, face, { smiling: 0.9 })).toBe('frontal-smile');
-    expect(classifyView({ yaw: 47, source: 'face' }, face)).toBe('oblique-L');
-    expect(classifyView({ yaw: -85, source: 'face' }, face)).toBe('lateral-R');
-    expect(classifyView({ yaw: 22, source: 'face' }, face)).toBeNull();
+  it('classifies face views within the current sequence and refuses the grey zones', () => {
+    const face = viewSequence([{ sub: 'face' }], 'preop');
+    expect(classifyStep({ yaw: 4, source: 'face' }, face)).toBe('face:frontal');
+    expect(classifyStep({ yaw: 3, source: 'face' }, face, { smiling: 0.9 })).toBe('face:frontal-smile');
+    expect(classifyStep({ yaw: 47, source: 'face' }, face)).toBe('face:oblique-L');
+    expect(classifyStep({ yaw: -85, source: 'face' }, face)).toBe('face:lateral-R');
+    expect(classifyStep({ yaw: 22, source: 'face' }, face)).toBeNull();
   });
 
-  it('classifies body views within the active set only', () => {
-    const breast = REGION_VIEWS.breast;
-    expect(classifyView({ yaw: 5, source: 'pose' }, breast, { armsUp: true })).toBe('AP-arms-up');
-    expect(classifyView({ yaw: -50, source: 'pose' }, breast)).toBe('body-oblique-R');
-    expect(classifyView({ yaw: 175, source: 'pose' }, breast)).toBeNull(); // PA not in breast set
-    expect(classifyView({ yaw: 175, source: 'pose' }, REGION_VIEWS.body)).toBe('PA');
+  it('does not guess between expressions or eyelid poses that share an angle', () => {
+    expect(classifyStep({ yaw: 0, source: 'face' }, viewSequence([{ sub: 'palsy', side: 'L' }], 'preop'))).toBeNull();
+    expect(classifyStep({ yaw: 0, source: 'face' }, viewSequence([{ sub: 'eyelids' }], 'preop'))).toBeNull();
+    expect(classifyStep({ yaw: 46, source: 'face' }, viewSequence([{ sub: 'eyelids' }], 'preop'))).toBe('eyelids:oblique-L');
+  });
+
+  it('classifies body views by detector and band, never manual views', () => {
+    const breasts = viewSequence([{ sub: 'breasts' }], 'preop');
+    expect(classifyStep({ yaw: 5, source: 'pose' }, breasts, { armsUp: true })).toBe('breasts:ap-arms-up');
+    expect(classifyStep({ yaw: -50, source: 'pose' }, breasts)).toBe('breasts:oblique-R');
+    expect(classifyStep({ yaw: 175, source: 'pose' }, breasts)).toBeNull(); // no PA view for breasts
+    expect(classifyStep({ yaw: 175, source: 'pose' }, viewSequence([{ sub: 'flanks' }], 'preop'))).toBe('flanks:pa');
+    expect(classifyStep({ yaw: 130, source: 'pose' }, viewSequence([{ sub: 'back' }], 'preop'))).toBe('back:post-oblique-L');
+    expect(classifyStep({ yaw: 0, source: 'face' }, viewSequence([{ sub: 'hand', side: 'L' }], 'preop'))).toBeNull();
+    expect(yawBucket(25, 'pose')).toBeNull();
   });
 
   it('smooths jitter without breaking at the seam', () => {

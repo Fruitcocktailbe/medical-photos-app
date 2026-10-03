@@ -3,7 +3,7 @@ import { favouriteProcedures, intervalFor, nextMissingView, proposeVisit, recent
 import type { Episode, Registry, Session, Shot } from './types';
 
 const ep = (extra: Partial<Episode> = {}): Episode => ({
-  id: 'e1', patientId: 'p1', region: 'breast', procedure: null, secondary: [], surgeryDate: null, startedAt: '2026-09-01', folderName: 'x', ...extra,
+  id: 'e1', patientId: 'p1', areas: [{ sub: 'breasts' }], procedure: null, secondary: [], surgeryDate: null, startedAt: '2026-09-01', folderName: 'x', ...extra,
 });
 const shot = (view: string): Shot => ({ file: `${view}.jpg`, view, kind: 'photo', index: 1, capturedAt: '', viewSource: 'manual' });
 const sess = (id: string, date: string, shots: Shot[] = [], extra: Partial<Session> = {}): Session => ({

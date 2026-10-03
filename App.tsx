@@ -23,6 +23,7 @@ import { Capture } from './src/screens/Capture';
 import { Summary } from './src/screens/Summary';
 import { Settings } from './src/screens/Settings';
 import { Spikes } from './src/screens/Spikes';
+import { ViewSets } from './src/screens/ViewSets';
 import { s } from './src/ui/kit';
 
 // Stale thumbnails from a killed session never survive an app start.
@@ -66,6 +67,7 @@ export default function App() {
               {screen.name === 'summary' && <Summary patientId={screen.patientId} episodeId={screen.episodeId} sessionId={screen.sessionId} demo={screen.demo} dispatch={dispatch} />}
               {screen.name === 'settings' && <Settings dispatch={dispatch} onLockChanged={setLockEnabled} />}
               {screen.name === 'spikes' && <Spikes dispatch={dispatch} />}
+              {screen.name === 'viewSets' && <ViewSets dispatch={dispatch} />}
             </>
           )}
         </SafeAreaView>

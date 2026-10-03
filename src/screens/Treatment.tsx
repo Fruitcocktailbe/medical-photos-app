@@ -4,7 +4,7 @@ import { formatDutchDate } from '../core/dates';
 import { visitLabel } from '../core/visits';
 import { useArchive, useReadyArchive } from '../app/ArchiveProvider';
 import { Big, Card, Header, s } from '../ui/kit';
-import { born, fullName, treatmentTitle } from '../ui/labels';
+import { born, fullName, treatmentAreas, treatmentTitle } from '../ui/labels';
 import type { Dispatch } from './types';
 
 export function Treatment({ patientId, dispatch }: { patientId: string; dispatch: Dispatch }) {
@@ -24,6 +24,7 @@ export function Treatment({ patientId, dispatch }: { patientId: string; dispatch
           return (
             <Card key={e.id} onPress={() => dispatch({ type: 'EPISODE_CHOSEN', episodeId: e.id })}>
               <Text style={s.h2}>{treatmentTitle(e)}</Text>
+              {e.procedure && <Text style={s.body}>{treatmentAreas(e)}</Text>}
               <Text style={s.muted}>
                 {e.surgeryDate ? `OK ${formatDutchDate(e.surgeryDate)} · ` : ''}
                 {last ? `laatst ${visitLabel(last.visit, last.interval)} op ${formatDutchDate(last.date)}` : 'nog geen foto’s'}

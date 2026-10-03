@@ -24,6 +24,7 @@ A consult room, ward or OR corridor. The phone comes out of a pocket, the patien
 | U7 | Already operated | **A patient can enter the app already post-op.** New treatment can start with the procedure and surgery date right away. |
 | U8 | Review | **Thumbnail strip while shooting** (tap: retake / delete / mark as reference) **+ summary screen before closing** (missing views shown, not blocking). |
 | U9 | Hands | **Screen only** in v1. No volume key, voice or remote. |
+| U11 | Anatomy | Body-map picker, sides, several areas, skin spots, editable view sets (Settings › Standaardzichten). Details in the anatomy plan. |
 | U10 | Favourites | **Star (☆/★) any procedure; starred ones are always on top**, in the order you starred them, then "Vaak gebruikt" (most used, not starred), then the rest. Stored in the photo folder (`.medical-photos/preferences.json`), so the tablet and a new phone keep them. |
 
 **Consequence of U7 for the reference rule:** when a treatment has no pre-op or consult session in the app, the **earliest earlier session** becomes the reference. So a patient first photographed at 6 weeks post-op gets matching 3-month and 1-year photos. Order: manual override → latest pre-op → latest consult → earliest session.
@@ -95,9 +96,14 @@ The system biometric prompt, nothing else on screen. Locks on launch and after 6
 
 ### New treatment
 
-- Search field over the procedure list: **★ Favorieten** (tap the star on any row to add or remove), then **Vaak gebruikt**, then all procedures. Search filters all three and keeps the stars on top.
-- **Nog geen ingreep** (consult, pre-op): pick the region only. This is enough to choose the views.
-- **Al geopereerd?** optional surgery date (dd/mm/yyyy). Covers patients who enter the app post-op (U7).
+Anatomy build (03/10, plan A1–A7 in the cockpit's `projects/medical-photos-app/anatomy-plan.md`):
+
+- **★ Favorieten** on top: your starred procedures and sub-areas as chips. A starred procedure that needs nothing else (no side, no pin) starts the treatment at once.
+- **Body map**, front and back. The front view shows the patient facing you, so the patient's left is on the right of the screen. Tap a zone: its sub-areas appear as chips (long-press a chip to star it), plus the four skin types for a spot at exactly that point.
+- **Sides** for limbs, peripheral nerves, ears and facial nerve: tapping the left arm preselects *Links*; adding the same sub-area from the other side makes it *Beide*. Paired anatomy (breasts, eyelids, nose…) has no side.
+- **Several areas** per treatment, listed under *Gekozen* with side chips, an editable spot label and ✕ to remove.
+- **Ingreep (optioneel)** and **Al geopereerd?** surgery date (U7). The procedure list below has ★ Favorieten · Vaak gebruikt · Alle, with procedures for the chosen areas first.
+- **Start** is disabled until every sided area has a side and every skin spot a pin.
 
 ### Visit
 
@@ -113,7 +119,7 @@ The system biometric prompt, nothing else on screen. Locks on launch and after 6
 ### Capture
 
 - Banner: **JANSSENS M. · Borstvergroting · post-op 6w** (initial only, the patient may see the screen).
-- **View rail**: chips for every view of the set, ticked when shot; the current view is highlighted. Tap a chip to jump. "+ Vrij" adds a free shot outside the set. Intra-op uses free mode only.
+- **View rail**: chips for every view of the sequence (area by area; per-side views as "Mediaal links", "Mediaal rechts"), ticked when shot, with a small area header when several areas are treated. Tap a chip to jump. "+ Vrij" adds a free shot outside the set. Intra-op uses free mode only.
 - Camera with:
   - for face views: the **ring** (green / orange / red) and at most two hints, live from the face detector, against the target from the reference rule (textbook on a first visit, the reference photo's geometry on follow-ups);
   - when the detector recognises another view than the current one: a chip "Herkend: ¾ rechts — wissel?";

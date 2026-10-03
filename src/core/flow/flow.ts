@@ -21,6 +21,7 @@ export type Screen =
   | ({ name: 'capture'; patientId: string; episodeId: string; sessionId: string } & Ctx)
   | ({ name: 'summary'; patientId: string; episodeId: string; sessionId: string } & Ctx)
   | { name: 'settings' }
+  | { name: 'viewSets' }
   | { name: 'spikes' };
 
 export type FlowEvent =
@@ -39,6 +40,7 @@ export type FlowEvent =
   | { type: 'SESSION_CLOSED' }
   | { type: 'OPEN_SETTINGS' }
   | { type: 'OPEN_SPIKES' }
+  | { type: 'OPEN_VIEW_SETS' }
   | { type: 'BACK' };
 
 export const DEMO_PARSE: LabelParse = {
@@ -102,6 +104,8 @@ export function reduce(s: Screen, e: FlowEvent): Screen {
       return s.name === 'scan' ? { name: 'settings' } : s;
     case 'OPEN_SPIKES':
       return s.name === 'settings' ? { name: 'spikes' } : s;
+    case 'OPEN_VIEW_SETS':
+      return s.name === 'settings' ? { name: 'viewSets' } : s;
     case 'BACK':
       return back(s);
   }
@@ -129,6 +133,7 @@ function back(s: Screen): Screen {
     case 'summary':
       return { ...s, name: 'capture' };
     case 'spikes':
+    case 'viewSets':
       return { name: 'settings' };
   }
 }

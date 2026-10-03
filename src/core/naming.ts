@@ -3,18 +3,19 @@
  * storage provider (SAF, Drive, Nextcloud, SharePoint) and every OS.
  *
  *   <root>/Janssens_Marie_1985-03-12/
- *            2026-10_breast-augmentation/          episode (region until procedure is set)
+ *            2026-10_breast-augmentation/          episode (areas slug until the procedure is set)
  *              2026-10-03_preop/                   session
- *                20261003_preop_AP_01.jpg
- *                20261003_preop_AP_01.annot.jpg    drawn-on copy
+ *                20261003_preop_breasts-ap_01.jpg
+ *                20261003_preop_breasts-ap_01.annot.jpg    drawn-on copy
  */
 import type { Episode, Patient, Session, Shot, ViewId, VisitType } from './types';
+import { areasSlug } from './catalog/catalog';
 
 /** Strip diacritics, keep letters/digits, spaces and apostrophes become '-' or vanish. */
 export function asciiSafe(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/['’`]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -24,8 +25,9 @@ export function patientFolderName(p: Pick<Patient, 'surname' | 'firstName' | 'do
   return `${asciiSafe(p.surname)}_${asciiSafe(p.firstName)}_${p.dob}`;
 }
 
-export function episodeFolderName(e: Pick<Episode, 'startedAt' | 'procedure' | 'region'>): string {
-  return `${e.startedAt.slice(0, 7)}_${asciiSafe(e.procedure ?? e.region)}`;
+/** "2026-10_oogleden", "2026-10_dij-L", "2026-10_borsten+buik" until the procedure is known, then the procedure id. */
+export function episodeFolderName(e: Pick<Episode, 'startedAt' | 'procedure' | 'areas'>): string {
+  return `${e.startedAt.slice(0, 7)}_${e.procedure ? asciiSafe(e.procedure) : areasSlug(e.areas)}`;
 }
 
 export function visitTag(visit: VisitType, interval?: string): string {

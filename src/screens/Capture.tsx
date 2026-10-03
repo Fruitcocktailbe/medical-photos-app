@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Camera, useCameraPermission, usePhotoOutput } from 'react-native-vision-camera';
 import { useFaceDetectorOutput, type Face } from 'react-native-vision-camera-face-detector';
-import { REGION_LABELS, VIEWS, viewSetForVisit } from '../core/catalog/catalog';
-import { BACK_CAMERA_SIGNS, classifyView, faceGeometry } from '../core/guidance/detectors';
+import { FREE_KEY, areasLabel, stepForKey, subById, viewSequence, type ViewStep } from '../core/catalog/catalog';
+import { BACK_CAMERA_SIGNS, classifyStep, faceGeometry } from '../core/guidance/detectors';
 import { evaluate, smooth } from '../core/guidance/evaluate';
 import { resolveTarget } from '../core/guidance/targets';
 import { nextMissingView, visitLabel } from '../core/visits';
@@ -20,7 +20,7 @@ import { usePhoneTilt } from '../platform/motion';
 import { previewUri, writePreview } from '../platform/previewCache';
 import { loadSettings, saveSettings } from '../platform/settings';
 import { ActionSheet, Big, Chip, Link, c, s, type SheetAction } from '../ui/kit';
-import { procedureLabel, shortName, viewLabel } from '../ui/labels';
+import { procedureLabel, shortName, viewLabel as viewLabelFor } from '../ui/labels';
 import type { Dispatch } from './types';
 
 function firstView(viewIds: ViewId[], session: Session): ViewId {
@@ -37,8 +37,12 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
   const patient = archive.patient(patientId);
   const episode = archive.episode(episodeId);
   const session = archive.session(sessionId);
-  const viewIds = viewSetForVisit(episode.region, episode.procedure, session.visit);
-  const faceRegion = episode.region === 'face';
+  const viewLabel = (key: string) => viewLabelFor(key, archive.viewOverrides);
+  const steps = viewSequence(episode.areas, session.visit, archive.viewOverrides);
+  const viewIds = steps.map((st) => st.key);
+  // Run the face detector only when the sequence has face-guided views. Fixed for the
+  // screen's lifetime so the camera outputs are never reconfigured mid-session.
+  const [faceRegion] = useState(() => steps.some((st) => st.detect === 'face'));
 
   const [current, setCurrent] = useState<ViewId>(() => firstView(viewIds, session));
   const [busy, setBusy] = useState(false);
@@ -48,7 +52,7 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
   const [ghost, setGhost] = useState<{ key: string; uri: string } | null>(null);
 
   const target = resolveTarget(current, episode, archive.sessionsOf(episodeId), session);
-  const detect = VIEWS[current]?.detect ?? 'manual';
+  const detect = stepForKey(current, archive.viewOverrides).detect;
   const ghostKey = ghostOn && target.reference ? `${target.reference.sessionId}/${target.reference.shot.file}` : null;
 
   // Ghost overlay: the reference photo of this view, loaded from the archive into the cache.
@@ -97,7 +101,7 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
 
   const showRing = faceRegion && detect === 'face';
   const guidance = showRing ? evaluate(snap.live, target) : null;
-  const recognised = showRing && snap.live ? classifyView(snap.live, viewIds, { smiling: snap.smile }) : null;
+  const recognised = showRing && snap.live ? classifyStep(snap.live, steps, { smiling: snap.smile }) : null;
   const ring = !guidance ? 'transparent' : !guidance.detected ? c.bad : guidance.allOk ? '#22c55e' : guidance.score > 0.6 ? '#f59e0b' : c.bad;
 
   const shoot = async () => {
@@ -107,11 +111,11 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
     try {
       const pic = await captureJpeg(photoOutput);
       const live = showRing ? latest.current.live : null;
-      const seen = live ? classifyView(live, viewIds, { smiling: latest.current.smile }) : null;
+      const seen = live ? classifyStep(live, steps, { smiling: latest.current.smile }) : null;
       const shot = await archive.fileShot(sessionId, { bytes: pic.bytes, view: current, viewSource: seen === current ? 'auto' : 'manual', geometry: live ?? undefined });
       writePreview(sessionId, shot.file, pic.bytes);
       changed();
-      if (current !== 'free') setCurrent(nextMissingView(viewIds, archive.session(sessionId), current) ?? current);
+      if (current !== FREE_KEY) setCurrent(nextMissingView(viewIds, archive.session(sessionId), current) ?? current);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : String(e));
     } finally {
@@ -157,7 +161,17 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
 
   const done = (v: ViewId) => session.shots.some((x) => x.view === v);
   const shotsNewestFirst = [...session.shots].reverse();
-  const title = `${shortName(patient)} · ${procedureLabel(episode.procedure) ?? REGION_LABELS[episode.region]} · ${visitLabel(session.visit, session.interval)}`;
+  const title = `${shortName(patient)} · ${procedureLabel(episode.procedure) ?? areasLabel(episode.areas)} · ${visitLabel(session.visit, session.interval)}`;
+  const multiArea = new Set(steps.map((st) => st.sub)).size > 1;
+  const railItem = (st: ViewStep, i: number) => {
+    const header = multiArea && (i === 0 || steps[i - 1].sub !== st.sub);
+    return (
+      <View key={st.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {header && <Text style={{ color: '#a5f3fc', fontSize: 12, fontWeight: '700' }}>{subById(st.sub)?.label}</Text>}
+        <Chip dark label={st.label} done={done(st.key)} selected={st.key === current} onPress={() => setCurrent(st.key)} />
+      </View>
+    );
+  };
 
   return (
     <View style={s.dark}>
@@ -166,10 +180,8 @@ export function Capture({ patientId, episodeId, sessionId, dispatch }: { patient
           {title}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {viewIds.map((v) => (
-            <Chip key={v} dark label={viewLabel(v)} done={done(v)} selected={v === current} onPress={() => setCurrent(v)} />
-          ))}
-          {!viewIds.includes('free') && <Chip dark label="+ Vrij" selected={current === 'free'} onPress={() => setCurrent('free')} />}
+          {steps.map(railItem)}
+          {!viewIds.includes(FREE_KEY) && <Chip dark label="+ Vrij" selected={current === FREE_KEY} onPress={() => setCurrent(FREE_KEY)} />}
         </ScrollView>
       </View>
 

@@ -6,14 +6,42 @@
  * Pure TypeScript: no React Native imports anywhere under src/core.
  */
 
+/** Legacy (before 03/10 anatomy build): five coarse regions. Read on load and converted to `areas`. */
 export type Region = 'face' | 'breast' | 'body' | 'hand' | 'other';
+
+/** L / R = one side; both = paired anatomy photographed per side where a view needs it. */
+export type Side = 'L' | 'R' | 'both';
+
+/** A pinned skin spot (scar, lesion, wound, burn) on the body map. */
+export interface Spot {
+  map: 'front' | 'back';
+  /** Body-map coordinates (viewBox 0..100 × 0..200). */
+  x: number;
+  y: number;
+  /** Editable, e.g. "linker onderarm, voorzijde". */
+  label: string;
+}
+
+/** One treated area of an episode (anatomy plan A1–A5). */
+export interface AreaSelection {
+  /** Sub-area id from the catalogue, e.g. "eyelids", "thigh", "scar". */
+  sub: string;
+  /** Only for sided sub-areas (limbs, nerves, ears, facial nerve). */
+  side?: Side;
+  /** Only for skin-spot sub-areas. */
+  spot?: Spot;
+}
 
 export type VisitType = 'consult' | 'preop' | 'intraop' | 'postop' | 'other';
 
 /** Post-op interval presets; free text is allowed for anything else ("10d"). */
 export type PostopInterval = '1w' | '6w' | '3m' | '6m' | '1y' | (string & {});
 
-/** A view id from the catalogue, e.g. "frontal", "oblique-L", "lateral-R", "AP-arms-up". */
+/**
+ * A view key: "<sub>:<view>" or "<sub>:<view>:<L|R>" for views shot per side,
+ * e.g. "face:frontal", "thigh:medial:L", "scar:closeup". "free" = outside any set.
+ * The side is part of the key, so a left follow-up never matches a right reference.
+ */
 export type ViewId = string;
 
 /**
@@ -84,8 +112,11 @@ export interface Patient {
 export interface Episode {
   id: string;
   patientId: string;
-  region: Region;
-  /** Null until the operation: pre-op only needs the region (PRD §6). */
+  /** What is treated: one or more sub-areas with side and spot (anatomy plan). */
+  areas: AreaSelection[];
+  /** Legacy field from before the anatomy build; converted to `areas` on load. */
+  region?: Region;
+  /** Null until the operation: pre-op only needs the areas (PRD §6). */
   procedure: string | null;
   secondary: string[];
   surgeryDate: string | null;

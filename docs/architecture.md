@@ -25,6 +25,8 @@ No backend. The phone reads labels, measures angles, names and tags files, and w
 | Two tolerance sets | `targets.ts` | Reference: tight (face ±5° yaw, ±10 % distance). Textbook: angle tight, framing loose. Starting values, tuned on device. |
 | Procedure per episode, backfilled | `archive.ts` `planProcedureBackfill` | Retag photos → write `episode.json` → rename folder **last**; safe to re-run. **Deviation from PRD §6:** the procedure is not mirrored into each `session.json`; it lives in `episode.json` and in every photo's XMP. One source, fewer writes. |
 | Offline-first | `core/storage/Outbox.ts` | Ordered op log in app-private storage; replay stops at the first failure; each write is read back and compared before the local blob is deleted. Reads and listings show a **merged view** (folder + pending writes, renames, removes), so an index rebuilt after a restart while offline still sees every patient. |
+| Anatomy | `core/catalog/catalog.ts`, `core/catalog/bodymap.ts` | Areas → sub-areas → views, sides, skin spots, procedure → sub-area mapping. View keys are `sub:view[:L|R]`, so a left follow-up never matches a right reference. `viewSequence()` walks the areas and expands per-side views. Body-map zones and hit-testing are pure and tested; `ui/BodyMap.tsx` only draws them. Episodes saved with the old single `region` are converted on load (areas + old view ids). |
+| View sets | `core/preferences.ts`, `screens/ViewSets.tsx` | Edits per sub-area (hide, reorder, custom views) in `.medical-photos/views.json` in the photo folder; defaults in the catalogue. Favourites in `.medical-photos/preferences.json`. The index rebuild skips the hidden folder. |
 | Navigation | `core/flow/flow.ts` | A pure state machine instead of Expo Router: the flow is linear and camera-centric, every path and Android back press is unit-tested, and screens only dispatch results. Behaviour spec: `docs/ux-flow.md`. |
 | App state | `app/ArchiveProvider.tsx` | One archive over `Outbox(app-private, chosen folder)`; screens call `changed()` after a mutation, which re-renders and schedules a sync (also on foreground and every 30 s while work waits). |
 | Previews | `platform/previewCache.ts` | Thumbnails and the ghost image live in the app cache per open session; wiped at Klaar and at every app start. |
@@ -46,6 +48,8 @@ No backend. The phone reads labels, measures angles, names and tags files, and w
 
 Onboarding (folder, lock, test run) · app lock · scan home with recent patients · confirm with match card · treatment and new treatment (procedure or region, optional surgery date) · visit with proposal, interval and inline procedure · capture with view rail, live ring for face views, ghost toggle, manual shutter advancing to the next missing view, thumbnail strip (retake, delete, reference) · summary with missing tiles and note · settings (folder, lock, sync, spikes).
 
+**Anatomy build (03/10):** body-map picker with sub-areas, sides and skin spots · several areas per treatment · favourites (procedures and sub-areas) · view-set editor · capture rail grouped per area · view recognition per sequence (`classifyStep`).
+
 ## Not built yet
 
-Patient timeline and before/after compare · drawing · dictation · export with the consent prompt and personal mark · tablet viewer mode · live body-pose guidance (needs a pose plugin for VisionCamera 5) · iOS build.
+Patient timeline and before/after compare · drawing · dictation · export with the consent prompt and personal mark · tablet viewer mode · live body-pose guidance (needs a pose plugin for VisionCamera 5) · iOS build · a free text label per "Functie" photo for nerve cases (use the session note for now).

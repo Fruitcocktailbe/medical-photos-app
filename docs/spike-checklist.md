@@ -57,3 +57,12 @@ Repeat per provider (at least: phone storage and the one you'd use for real). Re
 ## Bring back to Claude
 
 Paste the numbers and ✗ lines into the next session. Each answer maps to a decision: keep or replace ML Kit, still captures vs frame processor, tolerance values, sign constants, which storage provider for the pilot.
+
+## (d) Body map and view sets — in the app itself
+
+1. New treatment for the test patient: tap the **left** forearm on the front view (it is on the right of the screen). The chip should preselect *Links*. Add *Litteken* at the same spot and check the label reads "linker onderarm, voorzijde".
+2. Turn to the back view and tap the left forearm again: the side should stay *Links*.
+3. Choose *Brachioplastie* from the list: *Bovenarm beide* is added; Start shows both areas.
+4. In capture, check the rail: area headers, per-side chips ("Volair links").
+5. Settings › Standaardzichten › Oogleden: hide *Opwaartse blik*, add "Ptosis close-up", start a new eyelid session and check the rail.
+6. Eyelid close-ups: does the live ring find the face, or does it show "Geen gezicht in beeld" all the time? If the latter, those views become ghost-only.

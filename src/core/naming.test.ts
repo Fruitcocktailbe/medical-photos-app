@@ -6,9 +6,10 @@ describe('naming', () => {
     expect(patientFolderName({ surname: 'Van den Broeck', firstName: 'Pieter-Jan', dob: '1979-11-30' })).toBe('Van-den-Broeck_Pieter-Jan_1979-11-30');
     expect(patientFolderName({ surname: "D'Hondt", firstName: 'Élise', dob: '1990-01-01' })).toBe('DHondt_Elise_1990-01-01');
   });
-  it('names episodes by region until the procedure is known', () => {
-    expect(episodeFolderName({ startedAt: '2026-10-03', procedure: null, region: 'breast' })).toBe('2026-10_breast');
-    expect(episodeFolderName({ startedAt: '2026-10-03', procedure: 'breast-augmentation', region: 'breast' })).toBe('2026-10_breast-augmentation');
+  it('names episodes by their areas until the procedure is known', () => {
+    expect(episodeFolderName({ startedAt: '2026-10-03', procedure: null, areas: [{ sub: 'breasts' }] })).toBe('2026-10_borsten');
+    expect(episodeFolderName({ startedAt: '2026-10-03', procedure: null, areas: [{ sub: 'thigh', side: 'L' }] })).toBe('2026-10_dij-L');
+    expect(episodeFolderName({ startedAt: '2026-10-03', procedure: 'breast-augmentation', areas: [{ sub: 'breasts' }] })).toBe('2026-10_breast-augmentation');
   });
   it('names sessions and shots with the post-op interval', () => {
     const s = { date: '2026-11-14', visit: 'postop' as const, interval: '6w' };

@@ -19,7 +19,7 @@
  * the target falls back to textbook geometry but the shot is still returned so
  * the ghost overlay can show it.
  */
-import { VIEWS, type DetectMode } from '../catalog/catalog';
+import { stepForKey, type DetectMode } from '../catalog/catalog';
 import type { CaptureGeometry, Episode, Session, Shot, ViewId } from '../types';
 
 export interface Tolerance {
@@ -81,11 +81,11 @@ export const TEXTBOOK_TOLERANCE: Record<DetectMode, Tolerance> = {
 const TEXTBOOK_DISTANCE: Record<DetectMode, number> = { face: 0.35, pose: 0.55, manual: 0.5 };
 
 export function textbookGeometry(view: ViewId): TargetGeometry {
-  const def = VIEWS[view];
-  const detect = def?.detect ?? 'manual';
+  const step = stepForKey(view);
+  const detect = step.detect;
   return {
-    yaw: def?.yaw ?? 0,
-    pitch: def?.pitch ?? 0,
+    yaw: step.view.yaw ?? 0,
+    pitch: step.view.pitch ?? 0,
     roll: 0,
     distance: TEXTBOOK_DISTANCE[detect],
     centerX: 0,
@@ -140,7 +140,7 @@ export function resolveTarget(
   sessions: Session[],
   current: Pick<Session, 'id' | 'date'>,
 ): Target {
-  const detect = VIEWS[view]?.detect ?? 'manual';
+  const detect = stepForKey(view).detect;
   const reference = findReferenceShot(view, episode, sessions, current);
   if (reference?.shot.geometry) {
     return {

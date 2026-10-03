@@ -11,8 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Camera, useCameraPermission } from 'react-native-vision-camera';
 import { useFaceDetectorOutput, type Face } from 'react-native-vision-camera-face-detector';
-import { REGION_VIEWS, VIEWS } from '../core/catalog/catalog';
-import { BACK_CAMERA_SIGNS, classifyView, faceGeometry } from '../core/guidance/detectors';
+import { stepForKey, viewSequence } from '../core/catalog/catalog';
+import { BACK_CAMERA_SIGNS, classifyStep, faceGeometry } from '../core/guidance/detectors';
 import { evaluate, smooth } from '../core/guidance/evaluate';
 import { resolveTarget } from '../core/guidance/targets';
 import type { CaptureGeometry, Episode, Session } from '../core/types';
@@ -21,8 +21,9 @@ import { usePhoneTilt } from '../platform/motion';
 import { loadSettings, saveSettings } from '../platform/settings';
 import { Button, CameraGate, Field, Row, colors, styles } from './ui';
 
-const FACE_VIEWS = REGION_VIEWS.face.filter((v) => v !== 'frontal-smile');
-const EPISODE: Episode = { id: 'spike', patientId: 'spike', region: 'face', procedure: null, secondary: [], surgeryDate: null, startedAt: '2000-01-01', folderName: 'spike' };
+const FACE_STEPS = viewSequence([{ sub: 'face' }], 'preop');
+const FACE_VIEWS = FACE_STEPS.map((st) => st.key).filter((k) => k !== 'face:frontal-smile');
+const EPISODE: Episode = { id: 'spike', patientId: 'spike', areas: [{ sub: 'face' }], procedure: null, secondary: [], surgeryDate: null, startedAt: '2000-01-01', folderName: 'spike' };
 
 interface Snapshot {
   live: CaptureGeometry | null;
@@ -34,7 +35,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
   const permission = useCameraPermission();
   const tilt = usePhoneTilt();
   const [running, setRunning] = useState(true);
-  const [view, setView] = useState('frontal');
+  const [view, setView] = useState('face:frontal');
   const [inverted, setInverted] = useState(!!loadSettings().yawInverted);
   const invertedRef = useRef(inverted);
   const [reference, setReference] = useState<Record<string, CaptureGeometry | undefined>>({});
@@ -99,7 +100,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
 
   const { live, raw, perSecond } = snap;
   const guidance = evaluate(live, target);
-  const detectedView = live ? classifyView(live, REGION_VIEWS.face, { smiling: raw?.smile }) : null;
+  const detectedView = live ? classifyStep(live, FACE_STEPS, { smiling: raw?.smile }) : null;
   const ring = !guidance.detected ? colors.bad : guidance.allOk ? colors.ok : guidance.score > 0.6 ? colors.warn : colors.bad;
   const f = (n?: number) => (n == null ? '—' : n.toFixed(1));
 
@@ -114,7 +115,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
         </Text>
         <Row>
           {FACE_VIEWS.map((v) => (
-            <Button key={v} title={VIEWS[v].label} tone={v === view ? 'ink' : 'muted'} onPress={() => setView(v)} />
+            <Button key={v} title={stepForKey(v).label} tone={v === view ? 'ink' : 'muted'} onPress={() => setView(v)} />
           ))}
         </Row>
         <View style={styles.card}>
@@ -122,7 +123,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
           <Field label="Live yaw / pitch / roll" value={`${f(live?.yaw)}° / ${f(live?.pitch)}° / ${f(live?.roll)}°`} />
           <Field label="Afstand / centrum" value={`${f(live ? live.distance * 100 : undefined)}% / ${f(live ? live.centerX * 100 : undefined)}, ${f(live ? live.centerY * 100 : undefined)}`} />
           <Field label="Telefoon pitch / roll" value={`${f(tilt.current?.pitch)}° / ${f(tilt.current?.roll)}°`} />
-          <Field label="Herkend als" value={detectedView ? VIEWS[detectedView].label : 'twijfel'} />
+          <Field label="Herkend als" value={detectedView ? stepForKey(detectedView).label : 'twijfel'} />
           <Field label="ML Kit ruw X/Y/Z" value={raw ? `${f(raw.x)} / ${f(raw.y)} / ${f(raw.z)}` : undefined} />
           <Field label="Frame (b×h)" value={raw?.frame} />
           <Field label="Analyses per seconde" value={String(perSecond)} />

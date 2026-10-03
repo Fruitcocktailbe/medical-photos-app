@@ -67,6 +67,7 @@ export function Settings({ dispatch, onLockChanged }: { dispatch: Dispatch; onLo
         </Card>
 
         {message && <Text style={s.body}>{message}</Text>}
+        <Big title="Standaardzichten per gebied" tone="ink" onPress={() => dispatch({ type: 'OPEN_VIEW_SETS' })} />
         <Big title="Proefrit met testpatiënt" tone="ink" onPress={() => dispatch({ type: 'START_DEMO' })} />
         <Link title="Metingen (spikes)" tone="muted" onPress={() => dispatch({ type: 'OPEN_SPIKES' })} />
         <Text style={s.muted}>Medical Photos (werknaam) · ontwikkelversie</Text>

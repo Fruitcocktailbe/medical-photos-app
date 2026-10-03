@@ -1,12 +1,12 @@
 /** Summary before closing (U8): one tile per view, missing tiles not blocking, one note. */
 import { useState } from 'react';
 import { Alert, Image, ScrollView, Text, TextInput, View } from 'react-native';
-import { viewSetForVisit } from '../core/catalog/catalog';
+import { viewSequence } from '../core/catalog/catalog';
 import { sessionProgress, visitLabel } from '../core/visits';
 import { useArchive, useReadyArchive } from '../app/ArchiveProvider';
 import { clearPreviews, previewUri } from '../platform/previewCache';
 import { Big, Header, Link, c, s } from '../ui/kit';
-import { fullName, treatmentTitle, viewLabel } from '../ui/labels';
+import { fullName, treatmentTitle, viewLabel as viewLabelFor } from '../ui/labels';
 import type { Dispatch } from './types';
 
 export function Summary({ patientId, episodeId, sessionId, demo, dispatch }: { patientId: string; episodeId: string; sessionId: string; demo?: boolean; dispatch: Dispatch }) {
@@ -15,7 +15,8 @@ export function Summary({ patientId, episodeId, sessionId, demo, dispatch }: { p
   const patient = archive.patient(patientId);
   const episode = archive.episode(episodeId);
   const session = archive.session(sessionId);
-  const progress = sessionProgress(session, viewSetForVisit(episode.region, episode.procedure, session.visit));
+  const viewLabel = (key: string) => viewLabelFor(key, archive.viewOverrides);
+  const progress = sessionProgress(session, viewSequence(episode.areas, session.visit, archive.viewOverrides).map((st) => st.key));
   const [note, setNote] = useState(session.note ?? '');
   const [busy, setBusy] = useState(false);
 

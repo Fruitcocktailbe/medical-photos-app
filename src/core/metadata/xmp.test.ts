@@ -17,8 +17,8 @@ function fakeJpeg(): Uint8Array {
 }
 
 const meta: ShotXmp = {
-  patientId: 'p_abc', episodeId: 'e_1', sessionId: 's_1', view: 'lateral-L', visit: 'postop', interval: '6w',
-  region: 'breast', procedure: 'breast-augmentation', kind: 'photo', capturedAt: '2026-11-14T10:00:00.000Z', viewSource: 'auto',
+  patientId: 'p_abc', episodeId: 'e_1', sessionId: 's_1', view: 'breasts:lateral-L', visit: 'postop', interval: '6w',
+  areas: ['breasts', 'abdomen'], procedure: 'breast-augmentation', kind: 'photo', capturedAt: '2026-11-14T10:00:00.000Z', viewSource: 'auto',
   geometry: { yaw: 88.26, pitch: 0, roll: 1.04, distance: 0.55123, centerX: 0.012, centerY: -0.03, phonePitch: 1.2, source: 'pose' },
 };
 
@@ -26,7 +26,8 @@ describe('xmp', () => {
   it('round-trips tags and capture geometry through a JPEG', () => {
     const out = injectXmp(fakeJpeg(), buildXmp(meta));
     const parsed = parseXmp(readXmp(out)!);
-    expect(parsed.subjects).toEqual(['view:lateral-L', 'visit:postop', 'region:breast', 'interval:6w', 'procedure:breast-augmentation']);
+    expect(parsed.subjects).toEqual(['view:breasts:lateral-L', 'visit:postop', 'area:breasts', 'area:abdomen', 'interval:6w', 'procedure:breast-augmentation']);
+    expect(parsed.areas).toEqual(['breasts', 'abdomen']);
     expect(parsed).toMatchObject({ patientId: 'p_abc', sessionId: 's_1', procedure: 'breast-augmentation', viewSource: 'auto' });
     expect(parsed.geometry).toMatchObject({ yaw: 88.3, roll: 1, distance: 0.5512, phonePitch: 1.2, source: 'pose' });
     expect(parsed.geometry?.phoneRoll).toBeUndefined();

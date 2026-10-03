@@ -7,7 +7,7 @@
  * date of birth. Exports for social media or teaching strip all metadata.
  */
 import { utf8Decode, utf8Encode } from '../bytes';
-import type { CaptureGeometry, MediaKind, Region, VisitType } from '../types';
+import type { CaptureGeometry, MediaKind, VisitType } from '../types';
 
 export const MPA_NS = 'https://ns.medical-photos.app/1.0/';
 const XMP_HEADER = 'http://ns.adobe.com/xap/1.0/\0';
@@ -19,7 +19,10 @@ export interface ShotXmp {
   view: string;
   visit: VisitType;
   interval?: string;
-  region: Region;
+  /** Treated areas as "<sub>" or "<sub>:<L|R|both>", e.g. ["breasts", "abdomen"], ["thigh:L"]. */
+  areas: string[];
+  /** Skin-spot location text, e.g. "linker onderarm, voorzijde" (no patient identifiers). */
+  spot?: string;
   procedure: string | null;
   kind: MediaKind;
   capturedAt: string;
@@ -31,7 +34,10 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const unesc = (s: string) => s.replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
 
 export function subjectTags(m: ShotXmp): string[] {
-  const tags = [`view:${m.view}`, `visit:${m.visit}`, `region:${m.region}`];
+  const tags = [`view:${m.view}`, `visit:${m.visit}`];
+  for (const a of m.areas) tags.push(`area:${a.split(':')[0]}`);
+  const side = m.view.split(':')[2] ?? m.areas.map((a) => a.split(':')[1]).find((x) => x === 'L' || x === 'R');
+  if (side) tags.push(`side:${side}`);
   if (m.interval) tags.push(`interval:${m.interval}`);
   if (m.procedure) tags.push(`procedure:${m.procedure}`);
   return tags;
@@ -45,7 +51,8 @@ export function buildXmp(m: ShotXmp): string {
     ['view', m.view],
     ['visit', m.visit],
     ['interval', m.interval],
-    ['region', m.region],
+    ['areas', m.areas.join(',')],
+    ['spot', m.spot],
     ['procedure', m.procedure ?? undefined],
     ['kind', m.kind],
     ['capturedAt', m.capturedAt],
@@ -104,7 +111,8 @@ export function parseXmp(xmp: string): Partial<ShotXmp> & { subjects: string[] }
     view: get('view'),
     visit: get('visit') as VisitType | undefined,
     interval: get('interval'),
-    region: get('region') as Region | undefined,
+    areas: get('areas')?.split(',').filter(Boolean),
+    spot: get('spot'),
     procedure: get('procedure') ?? null,
     kind: get('kind') as MediaKind | undefined,
     capturedAt: get('capturedAt'),

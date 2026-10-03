@@ -58,13 +58,15 @@ export function Link({ title, onPress, tone = 'accent', disabled }: { title: str
   );
 }
 
-export function Chip({ label, selected, onPress, done, dark }: { label: string; selected?: boolean; onPress: () => void; done?: boolean; dark?: boolean }) {
+export function Chip({ label, selected, onPress, onLongPress, done, dark }: { label: string; selected?: boolean; onPress: () => void; onLongPress?: () => void; done?: boolean; dark?: boolean }) {
   const fg = selected ? c.white : dark ? c.white : c.ink;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       style={[styles.chip, { backgroundColor: selected ? c.accent : dark ? 'rgba(255,255,255,0.15)' : c.card, borderColor: selected ? c.accent : dark ? 'transparent' : c.line }]}
     >
       <Text style={{ color: fg, fontSize: 15, fontWeight: selected ? '700' : '500' }}>

@@ -6,6 +6,7 @@
  */
 import { utf8Decode } from '../bytes';
 import type { Episode, Patient, Registry, Session } from '../types';
+import { areasFromLegacyRegion, areasLabel, legacyViewKey } from '../catalog/catalog';
 import type { Path, StorageTarget } from '../storage/StorageTarget';
 
 export interface RebuildResult {
@@ -42,7 +43,10 @@ export async function rebuildIndex(storage: StorageTarget): Promise<RebuildResul
         problems.push(`${pDir.name}/${eDir.name}: geen leesbare episode.json`);
         continue;
       }
-      registry.episodes.push({ ...episode, patientId: patient.id, folderName: eDir.name });
+      // Before the anatomy build an episode had one coarse `region`; convert on load.
+      const legacyRegion = !episode.areas && episode.region ? episode.region : undefined;
+      const areas = episode.areas ?? areasFromLegacyRegion(episode.region ?? 'other');
+      registry.episodes.push({ ...episode, areas, patientId: patient.id, folderName: eDir.name });
 
       for (const sDir of (await storage.list([pDir.name, eDir.name])).filter((e) => e.isDirectory && visible(e.name))) {
         const sPath = [pDir.name, eDir.name, sDir.name];
@@ -55,7 +59,8 @@ export async function rebuildIndex(storage: StorageTarget): Promise<RebuildResul
         for (const s of session.shots) {
           if (!files.has(s.file)) problems.push(`${sPath.join('/')}/${s.file}: ontbreekt`);
         }
-        registry.sessions.push({ ...session, episodeId: episode.id, patientId: patient.id, folderName: sDir.name });
+        const shots = legacyRegion ? session.shots.map((s) => ({ ...s, view: legacyViewKey(legacyRegion, s.view) })) : session.shots;
+        registry.sessions.push({ ...session, shots, episodeId: episode.id, patientId: patient.id, folderName: sDir.name });
       }
     }
   }
@@ -65,7 +70,7 @@ export async function rebuildIndex(storage: StorageTarget): Promise<RebuildResul
 /** Reporting (PRD Q25): find cases by procedure, visit and interval. */
 export function findCases(
   r: Registry,
-  q: { procedure?: string; region?: string; visit?: Session['visit']; interval?: string },
+  q: { procedure?: string; sub?: string; visit?: Session['visit']; interval?: string },
 ): { patient: Patient; episode: Episode; session: Session }[] {
   const out: { patient: Patient; episode: Episode; session: Session }[] = [];
   for (const session of r.sessions) {
@@ -73,7 +78,7 @@ export function findCases(
     const patient = r.patients.find((p) => p.id === session.patientId);
     if (!episode || !patient) continue;
     if (q.procedure && episode.procedure !== q.procedure) continue;
-    if (q.region && episode.region !== q.region) continue;
+    if (q.sub && !episode.areas.some((a) => a.sub === q.sub)) continue;
     if (q.visit && session.visit !== q.visit) continue;
     if (q.interval && session.interval !== q.interval) continue;
     out.push({ patient, episode, session });
@@ -85,7 +90,7 @@ export function findCases(
 export function episodesPerProcedure(r: Registry): Record<string, number> {
   const out: Record<string, number> = {};
   for (const e of r.episodes) {
-    const k = e.procedure ?? `(${e.region}, nog geen ingreep)`;
+    const k = e.procedure ?? `(${areasLabel(e.areas)}, nog geen ingreep)`;
     out[k] = (out[k] ?? 0) + 1;
   }
   return out;

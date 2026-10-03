@@ -9,10 +9,12 @@ import { annotatedFileName, asciiSafe, episodeFolderName, nextShotIndex, patient
 import { buildXmp, injectXmp, type ShotXmp } from './metadata/xmp';
 import { MIME, type Path, type StorageTarget } from './storage/StorageTarget';
 import { rebuildIndex } from './index/rebuild';
+import { needsSide, needsSpot, selectionLabel, subById } from './catalog/catalog';
 import { displayCase } from './identity/parseLabel';
-import { EMPTY_PREFERENCES, loadPreferences, savePreferences, toggle, type Preferences } from './preferences';
+import { EMPTY_PREFERENCES, loadPreferences, loadViewOverrides, savePreferences, saveViewOverrides, toggle, type Preferences } from './preferences';
+import type { ViewSetOverrides } from './catalog/catalog';
 import type {
-  CaptureGeometry, ConsentScope, Episode, MediaKind, Patient, Region, Registry, Session, Shot, ViewId, VisitType,
+  AreaSelection, CaptureGeometry, ConsentScope, Episode, MediaKind, Patient, Registry, Session, Shot, ViewId, VisitType,
 } from './types';
 
 export interface ArchiveDeps {
@@ -47,6 +49,8 @@ export class Archive {
   registry: Registry = { patients: [], episodes: [], sessions: [] };
   problems: string[] = [];
   preferences: Preferences = { ...EMPTY_PREFERENCES };
+  /** Edited view sets (anatomy plan A6); empty = catalogue defaults. */
+  viewOverrides: ViewSetOverrides = {};
   private now: () => Date;
   private id: IdGen;
 
@@ -61,6 +65,7 @@ export class Archive {
     a.registry = registry;
     a.problems = problems;
     a.preferences = await loadPreferences(deps.storage);
+    a.viewOverrides = await loadViewOverrides(deps.storage);
     return a;
   }
 
@@ -167,6 +172,15 @@ export class Archive {
     return this.preferences.favouriteAreas.includes(areaId);
   }
 
+  /** Replace one sub-area's edits; `null` restores the catalogue default. */
+  async setViewOverride(subId: string, override: ViewSetOverrides[string] | null) {
+    const next = { ...this.viewOverrides };
+    if (override === null) delete next[subId];
+    else next[subId] = override;
+    this.viewOverrides = next;
+    await saveViewOverrides(this.deps.storage, next);
+  }
+
   // ---------- consent (oral, one tap; PRD Q24) ----------
 
   async recordConsent(patientId: string, scope: ConsentScope, granted: boolean, askedBy = this.deps.operator) {
@@ -189,24 +203,36 @@ export class Archive {
   // ---------- episodes & sessions ----------
 
   /**
-   * A new treatment. Usually only the region is known (consult, pre-op); a
-   * patient who enters the app already operated can start with the procedure
-   * and surgery date right away (UX decision U7).
+   * A new treatment on one or more areas (anatomy plan A3). Usually only the
+   * areas are known (consult, pre-op); a patient who enters the app already
+   * operated can start with the procedure and surgery date right away (U7).
+   * Sided areas need a side, skin spots need a pin.
    */
   async startEpisode(
     patientId: string,
-    region: Region,
+    areas: AreaSelection[],
     date = isoDate(this.now()),
     opts: { procedure?: string | null; surgeryDate?: string | null } = {},
   ): Promise<Episode> {
     const p = this.patient(patientId);
+    if (areas.length === 0) throw new Error('Kies minstens één gebied');
+    for (const a of areas) {
+      if (!subById(a.sub)) throw new Error(`Onbekend gebied: ${a.sub}`);
+      if (needsSide(a)) throw new Error(`Kies de zijde voor ${selectionLabel(a)}`);
+      if (needsSpot(a)) throw new Error(`Duid de plaats aan voor ${selectionLabel(a)}`);
+    }
+    const clean = areas.map((a) => ({
+      sub: a.sub,
+      ...(subById(a.sub)!.sided && a.side ? { side: a.side } : {}),
+      ...(subById(a.sub)!.spot && a.spot ? { spot: a.spot } : {}),
+    }));
     const procedure = opts.procedure ?? null;
-    const draft = { startedAt: date, procedure, region };
+    const draft = { startedAt: date, procedure, areas: clean };
     const siblings = this.episodesOf(patientId).map((e) => e.folderName);
     const episode: Episode = {
       id: `e_${this.id()}`,
       patientId,
-      region,
+      areas: clean,
       procedure,
       secondary: [],
       surgeryDate: opts.surgeryDate ?? null,
@@ -255,7 +281,8 @@ export class Archive {
       view: shot.view,
       visit: session.visit,
       interval: session.interval,
-      region: e.region,
+      areas: e.areas.map((a) => (a.side ? `${a.sub}:${a.side}` : a.sub)),
+      spot: e.areas.find((a) => a.spot)?.spot?.label,
       procedure: e.procedure,
       kind: shot.kind,
       capturedAt: shot.capturedAt,

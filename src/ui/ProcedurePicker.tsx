@@ -5,21 +5,22 @@
  */
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { REGION_LABELS, type ProcedureDef } from '../core/catalog/catalog';
+import { AREA_LABELS, procedureArea, type ProcedureDef } from '../core/catalog/catalog';
 import { procedureSections } from '../core/preferences';
 import { favouriteProcedures } from '../core/visits';
 import { useArchive, useReadyArchive } from '../app/ArchiveProvider';
 import { c, s } from './kit';
 
 export function ProcedurePicker({
-  region,
-  onlyRegion,
+  subs,
+  onlySubs,
   selected,
   onPick,
   disabled,
 }: {
-  region: string | null;
-  onlyRegion?: boolean;
+  /** Treated sub-areas: their procedures come first (and only them with `onlySubs`). */
+  subs?: string[];
+  onlySubs?: boolean;
   selected?: string | null;
   onPick: (p: ProcedureDef) => void;
   disabled?: boolean;
@@ -28,7 +29,7 @@ export function ProcedurePicker({
   const { changed } = useArchive();
   const [query, setQuery] = useState('');
   const starred = archive.preferences.favouriteProcedures;
-  const sections = procedureSections({ starred, frequent: favouriteProcedures(archive.registry), query, region, onlyRegion });
+  const sections = procedureSections({ starred, frequent: favouriteProcedures(archive.registry), query, subs, onlySubs });
 
   const star = async (id: string) => {
     await archive.toggleFavouriteProcedure(id);
@@ -58,7 +59,7 @@ export function ProcedurePicker({
                     {isSel ? '✓ ' : ''}
                     {p.label}
                   </Text>
-                  {!onlyRegion && <Text style={s.muted}>{REGION_LABELS[p.region]}</Text>}
+                  {!onlySubs && <Text style={s.muted}>{AREA_LABELS[procedureArea(p)]}</Text>}
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"

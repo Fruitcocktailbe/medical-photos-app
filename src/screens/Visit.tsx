@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { REGION_LABELS } from '../core/catalog/catalog';
+import { areasLabel } from '../core/catalog/catalog';
 import { isoDate } from '../core/ids';
 import { INTERVAL_PRESETS, intervalFor, proposeVisit, visitLabel } from '../core/visits';
 import type { VisitType } from '../core/types';
@@ -107,9 +107,9 @@ export function Visit({ patientId, episodeId, dispatch }: { patientId: string; e
 
         {needsProcedure && (
           <View style={{ gap: 8 }}>
-            <Text style={s.h2}>Welke ingreep? ({REGION_LABELS[episode.region]})</Text>
+            <Text style={s.h2}>Welke ingreep? ({areasLabel(episode.areas)})</Text>
             <Text style={s.muted}>Wordt ook op de eerdere foto&apos;s van deze behandeling gezet.</Text>
-            <ProcedurePicker region={episode.region} onlyRegion={episode.region !== 'other'} selected={procedure} onPick={(p) => setProcedure(p.id)} />
+            <ProcedurePicker subs={episode.areas.map((a) => a.sub)} onlySubs={!episode.areas.some((a) => a.sub === 'free')} selected={procedure} onPick={(p) => setProcedure(p.id)} />
           </View>
         )}
 

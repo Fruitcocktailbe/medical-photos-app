@@ -45,6 +45,8 @@ describe('flow', () => {
     expect(reduce({ name: 'newTreatment', patientId: 'p', hasEpisodes: true }, { type: 'BACK' }).name).toBe('treatment');
     expect(reduce({ name: 'confirm', parse }, { type: 'BACK' })).toEqual({ name: 'scan' });
     expect(reduce({ name: 'spikes' }, { type: 'BACK' })).toEqual({ name: 'settings' });
+    expect(reduce({ name: 'settings' }, { type: 'OPEN_VIEW_SETS' })).toEqual({ name: 'viewSets' });
+    expect(reduce({ name: 'viewSets' }, { type: 'BACK' })).toEqual({ name: 'settings' });
     expect(isRoot({ name: 'scan' })).toBe(true);
     expect(isRoot(cap)).toBe(false);
   });

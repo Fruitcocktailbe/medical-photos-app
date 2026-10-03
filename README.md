@@ -7,7 +7,7 @@ Android camera app for plastic-surgery clinical photography (working name).
 3. Shoot with live angle guidance. **Follow-ups are guided to the exact angle, distance and framing of the pre-op photo**, so before/after pairs match.
 4. Photos are named, tagged and filed in a folder you chose (Nextcloud, Drive, phone storage…). Never in the camera roll.
 
-**Status (03/10/2026):** first full flow, not yet run on a device. Onboarding, lock, scan, confirm, treatment, visit, guided capture and summary are built on the tested core (108 unit tests). The three measurement screens live under Settings › Metingen. Next step: build it for the phone and run `docs/spike-checklist.md`, then the test run in the app itself.
+**Status (03/10/2026):** first full flow plus the anatomy build, not yet run on a device. Onboarding, lock, scan, confirm, body-map treatment picker (sides, several areas, skin spots, favourites), visit, guided capture and summary are built on the tested core (141 unit tests). View sets are editable under Settings › Standaardzichten. The three measurement screens live under Settings › Metingen. Next step: build it for the phone and run `docs/spike-checklist.md`, then the test run in the app itself.
 
 ```bash
 npm install

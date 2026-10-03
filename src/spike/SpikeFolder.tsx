@@ -92,9 +92,9 @@ export function SpikeFolder({ onBack }: { onBack: () => void }) {
       })) &&
       (await step('Patiënt + episode + sessie + foto (offline wachtrij)', async () => {
         const p = await archive.createPatient({ surname: 'Test', firstName: 'Spike', dob: '2000-01-01' });
-        const e = await archive.startEpisode(p.id, 'face');
+        const e = await archive.startEpisode(p.id, [{ sub: 'face' }]);
         const s = await archive.startSession(e.id, 'preop');
-        const shot = await archive.fileShot(s.id, { bytes: photo, view: 'frontal', viewSource: 'manual' });
+        const shot = await archive.fileShot(s.id, { bytes: photo, view: 'face:frontal', viewSource: 'manual' });
         episodeId = e.id;
         sessionId = s.id;
         file = shot.file;
@@ -117,7 +117,7 @@ export function SpikeFolder({ onBack }: { onBack: () => void }) {
         const r = await box.drain();
         if (r.error) throw new Error(r.error);
         const dirs = (await target.list([P])).map((x) => x.name);
-        if (!dirs.some((d) => d.endsWith('_facelift')) || dirs.some((d) => d.endsWith('_face'))) throw new Error(`mappen: ${dirs.join(', ')}`);
+        if (!dirs.some((d) => d.endsWith('_facelift')) || dirs.some((d) => d.endsWith('_gelaat'))) throw new Error(`mappen: ${dirs.join(', ')}`);
         return `${retagged} foto hertagd, mappen: ${dirs.join(', ')}`;
       })) &&
       (await step('Tag in de JPEG zelf leesbaar', async () => {

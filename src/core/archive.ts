@@ -10,6 +10,7 @@ import { buildXmp, injectXmp, type ShotXmp } from './metadata/xmp';
 import { MIME, type Path, type StorageTarget } from './storage/StorageTarget';
 import { rebuildIndex } from './index/rebuild';
 import { displayCase } from './identity/parseLabel';
+import { EMPTY_PREFERENCES, loadPreferences, savePreferences, toggle, type Preferences } from './preferences';
 import type {
   CaptureGeometry, ConsentScope, Episode, MediaKind, Patient, Region, Registry, Session, Shot, ViewId, VisitType,
 } from './types';
@@ -45,6 +46,7 @@ export type BackfillOp =
 export class Archive {
   registry: Registry = { patients: [], episodes: [], sessions: [] };
   problems: string[] = [];
+  preferences: Preferences = { ...EMPTY_PREFERENCES };
   private now: () => Date;
   private id: IdGen;
 
@@ -58,6 +60,7 @@ export class Archive {
     const { registry, problems } = await rebuildIndex(deps.storage);
     a.registry = registry;
     a.problems = problems;
+    a.preferences = await loadPreferences(deps.storage);
     return a;
   }
 
@@ -148,6 +151,20 @@ export class Archive {
     await this.writeJson([folderName, 'patient.json'], patient);
     this.registry.patients.push(patient);
     return patient;
+  }
+
+  // ---------- favourites (stored in the folder, travel to tablet and new phones) ----------
+
+  async toggleFavouriteProcedure(procedureId: string): Promise<boolean> {
+    this.preferences = { ...this.preferences, favouriteProcedures: toggle(this.preferences.favouriteProcedures, procedureId) };
+    await savePreferences(this.deps.storage, this.preferences);
+    return this.preferences.favouriteProcedures.includes(procedureId);
+  }
+
+  async toggleFavouriteArea(areaId: string): Promise<boolean> {
+    this.preferences = { ...this.preferences, favouriteAreas: toggle(this.preferences.favouriteAreas, areaId) };
+    await savePreferences(this.deps.storage, this.preferences);
+    return this.preferences.favouriteAreas.includes(areaId);
   }
 
   // ---------- consent (oral, one tap; PRD Q24) ----------

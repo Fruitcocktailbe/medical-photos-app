@@ -24,6 +24,7 @@ A consult room, ward or OR corridor. The phone comes out of a pocket, the patien
 | U7 | Already operated | **A patient can enter the app already post-op.** New treatment can start with the procedure and surgery date right away. |
 | U8 | Review | **Thumbnail strip while shooting** (tap: retake / delete / mark as reference) **+ summary screen before closing** (missing views shown, not blocking). |
 | U9 | Hands | **Screen only** in v1. No volume key, voice or remote. |
+| U10 | Favourites | **Star (☆/★) any procedure; starred ones are always on top**, in the order you starred them, then "Vaak gebruikt" (most used, not starred), then the rest. Stored in the photo folder (`.medical-photos/preferences.json`), so the tablet and a new phone keep them. |
 
 **Consequence of U7 for the reference rule:** when a treatment has no pre-op or consult session in the app, the **earliest earlier session** becomes the reference. So a patient first photographed at 6 weeks post-op gets matching 3-month and 1-year photos. Order: manual override → latest pre-op → latest consult → earliest session.
 
@@ -94,7 +95,7 @@ The system biometric prompt, nothing else on screen. Locks on launch and after 6
 
 ### New treatment
 
-- Search field over the procedure list; favourites (most used) first, then the rest grouped by region.
+- Search field over the procedure list: **★ Favorieten** (tap the star on any row to add or remove), then **Vaak gebruikt**, then all procedures. Search filters all three and keeps the stars on top.
 - **Nog geen ingreep** (consult, pre-op): pick the region only. This is enough to choose the views.
 - **Al geopereerd?** optional surgery date (dd/mm/yyyy). Covers patients who enter the app post-op (U7).
 

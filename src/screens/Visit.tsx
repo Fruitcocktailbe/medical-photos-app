@@ -4,18 +4,18 @@
  * earlier photos); optional surgery date for post-op.
  */
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
-import { REGION_LABELS, procedurePickerOrder } from '../core/catalog/catalog';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { REGION_LABELS } from '../core/catalog/catalog';
 import { isoDate } from '../core/ids';
-import { INTERVAL_PRESETS, favouriteProcedures, intervalFor, proposeVisit, visitLabel } from '../core/visits';
+import { INTERVAL_PRESETS, intervalFor, proposeVisit, visitLabel } from '../core/visits';
 import type { VisitType } from '../core/types';
 import { useArchive, useReadyArchive } from '../app/ArchiveProvider';
-import { Big, Card, Chip, DateField, Header, c, s } from '../ui/kit';
+import { Big, Chip, DateField, Header, c, s } from '../ui/kit';
+import { ProcedurePicker } from '../ui/ProcedurePicker';
 import { fullName, procedureLabel, treatmentTitle } from '../ui/labels';
 import type { Dispatch } from './types';
 
 const VISITS: VisitType[] = ['consult', 'preop', 'intraop', 'postop'];
-const fold = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function Visit({ patientId, episodeId, dispatch }: { patientId: string; episodeId: string; dispatch: Dispatch }) {
   const archive = useReadyArchive();
@@ -29,7 +29,6 @@ export function Visit({ patientId, episodeId, dispatch }: { patientId: string; e
   const [interval, setIntervalChoice] = useState<string | undefined>(proposal.interval);
   const [surgeryDate, setSurgeryDate] = useState<string | null>(episode.surgeryDate);
   const [procedure, setProcedure] = useState<string | null>(episode.procedure);
-  const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<string>();
 
@@ -61,10 +60,6 @@ export function Visit({ patientId, episodeId, dispatch }: { patientId: string; e
       setBusy(null);
     }
   };
-
-  const procedures = procedurePickerOrder(episode.region, favouriteProcedures(archive.registry))
-    .filter((p) => p.region === episode.region || episode.region === 'other')
-    .filter((p) => !query || fold(p.label).includes(fold(query)));
 
   return (
     <View style={s.screen}>
@@ -114,15 +109,7 @@ export function Visit({ patientId, episodeId, dispatch }: { patientId: string; e
           <View style={{ gap: 8 }}>
             <Text style={s.h2}>Welke ingreep? ({REGION_LABELS[episode.region]})</Text>
             <Text style={s.muted}>Wordt ook op de eerdere foto&apos;s van deze behandeling gezet.</Text>
-            <TextInput style={s.input} placeholder="Zoek ingreep…" value={query} onChangeText={setQuery} autoCorrect={false} />
-            {procedures.map((p) => (
-              <Card key={p.id} onPress={() => setProcedure(p.id)} style={procedure === p.id ? { backgroundColor: '#cffafe' } : undefined}>
-                <Text style={s.body}>
-                  {procedure === p.id ? '✓ ' : ''}
-                  {p.label}
-                </Text>
-              </Card>
-            ))}
+            <ProcedurePicker region={episode.region} onlyRegion={episode.region !== 'other'} selected={procedure} onPick={(p) => setProcedure(p.id)} />
           </View>
         )}
 

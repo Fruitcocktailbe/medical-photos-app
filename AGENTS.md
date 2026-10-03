@@ -16,7 +16,9 @@ Android camera app for plastic-surgery clinical photography (working name). Scan
 ## Layout
 
 - `src/core/` — pure TypeScript, no React Native imports. All logic, unit-tested with Vitest (`npm test`).
-- `src/platform/` — Android/Expo adapters (storage, ML Kit, motion). Verified on the device only.
+- `src/platform/` — device adapters: VisionCamera 5 camera layer (`camera.ts`), on-device OCR, SAF storage, motion. Verified on the device only.
+
+**Stack (decided 03/10, logged in the cockpit):** one Expo/React Native codebase for Android now and iOS later. Camera = `react-native-vision-camera` 5 (Nitro). Its API is hook-and-output based (`usePhotoOutput`, `useObjectOutput`, `useFaceDetectorOutput`), unlike v3/v4 tutorials; read the installed typings before using it. A community plugin that fails is replaced by our own thin native plugin (Kotlin + Swift), not by switching stacks.
 - `src/spike/` + `App.tsx` — throwaway spike screens. The MVP replaces them and adopts Expo Router.
 
 ## Commands

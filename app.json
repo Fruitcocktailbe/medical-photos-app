@@ -8,7 +8,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "be.poelaert.medicalphotos"
+      "bundleIdentifier": "be.poelaert.medicalphotos",
+      "infoPlist": {
+        "NSCameraUsageDescription": "De camera wordt gebruikt voor klinische foto's en om het patiëntetiket te lezen."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,20 +31,15 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ],
-      "allowBackup": false
+      "allowBackup": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "De camera wordt gebruikt voor klinische foto's en om het patiëntetiket te lezen.",
-          "recordAudioAndroid": false,
-          "barcodeScannerEnabled": true
-        }
-      ],
       "expo-sensors"
     ]
   }

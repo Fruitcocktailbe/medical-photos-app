@@ -16,6 +16,8 @@ npx expo lint
 npm run build:dev      # Android development build via EAS
 ```
 
+Stack: Expo / React Native (one codebase, Android now, iOS later), camera on VisionCamera 5, ML Kit on device.
+
 Docs: `AGENTS.md` (rules) · `docs/handoff-2026-10-03.md` (build brief) · `docs/architecture.md` · `docs/spike-checklist.md`. Product requirements live in the J.A.R.V.I.S cockpit (`projects/medical-photos-app/prd.md`).
 
 Private. No patient data in this repository, ever.

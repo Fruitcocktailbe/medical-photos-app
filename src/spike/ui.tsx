@@ -41,3 +41,19 @@ export const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: colors.line, borderRadius: 12, padding: 12, gap: 6 },
   mono: { fontFamily: 'monospace', fontSize: 12, color: colors.ink },
 });
+
+/** Camera permission gate shared by the spike screens. */
+export function CameraGate({ granted, canAsk, onAsk, onBack }: { granted: boolean; canAsk: boolean; onAsk: () => void; onBack: () => void }) {
+  if (granted) return null;
+  return (
+    <View style={[styles.screen, styles.pad]}>
+      <Text style={styles.title}>Camera nodig</Text>
+      {canAsk ? (
+        <Button title="Toestaan" onPress={onAsk} />
+      ) : (
+        <Text style={styles.muted}>Geweigerd. Zet de camera aan via Instellingen › Apps › Medical Photos.</Text>
+      )}
+      <Button title="Terug" onPress={onBack} tone="muted" />
+    </View>
+  );
+}

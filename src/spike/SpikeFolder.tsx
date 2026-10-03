@@ -6,10 +6,9 @@
  *  4. rebuild the index from the folder (the tablet's view)
  * Use a NEW EMPTY folder and photograph an object, never a patient.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { File } from 'expo-file-system';
+import { Camera, useCameraPermission, usePhotoOutput } from 'react-native-vision-camera';
 import { Archive } from '../core/archive';
 import { Outbox } from '../core/storage/Outbox';
 import { parseXmp, readXmp } from '../core/metadata/xmp';
@@ -17,13 +16,14 @@ import { rebuildIndex } from '../core/index/rebuild';
 import { SafTarget } from '../platform/SafTarget';
 import { LocalTarget } from '../platform/LocalTarget';
 import { loadSettings, saveSettings } from '../platform/settings';
-import { Button, Row, colors, styles } from './ui';
+import { PHOTO_OUTPUT_OPTIONS, captureJpeg } from '../platform/camera';
+import { Button, CameraGate, Row, colors, styles } from './ui';
 
 type Line = { ok: boolean | null; text: string };
 
 export function SpikeFolder({ onBack }: { onBack: () => void }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const camera = useRef<CameraView>(null);
+  const permission = useCameraPermission();
+  const photoOutput = usePhotoOutput(PHOTO_OUTPUT_OPTIONS);
   const [target, setTarget] = useState<SafTarget | null>(null);
   const [photo, setPhoto] = useState<Uint8Array | null>(null);
   const [log, setLog] = useState<Line[]>([]);
@@ -55,12 +55,13 @@ export function SpikeFolder({ onBack }: { onBack: () => void }) {
   };
 
   const shoot = async () => {
-    const pic = await camera.current?.takePictureAsync({ quality: 0.8, shutterSound: false });
-    if (!pic) return;
-    const f = new File(pic.uri);
-    setPhoto(await f.bytes());
-    f.delete();
-    say(true, `Testfoto: ${pic.width}×${pic.height}`);
+    try {
+      const pic = await captureJpeg(photoOutput); // bytes in memory only, no temp file
+      setPhoto(pic.bytes);
+      say(true, `Testfoto: ${pic.width}×${pic.height}, ${Math.round(pic.bytes.length / 1024)} kB JPEG`);
+    } catch (e) {
+      say(false, `Foto mislukt: ${String(e)}`);
+    }
   };
 
   const run = async () => {
@@ -145,19 +146,13 @@ export function SpikeFolder({ onBack }: { onBack: () => void }) {
     say(null, 'Testmap verwijderd');
   };
 
-  if (!permission) return null;
-  if (!permission.granted) {
-    return (
-      <View style={[styles.screen, styles.pad]}>
-        <Button title="Camera toestaan" onPress={requestPermission} />
-        <Button title="Terug" onPress={onBack} tone="muted" />
-      </View>
-    );
+  if (!permission.hasPermission) {
+    return <CameraGate granted={false} canAsk={permission.canRequestPermission} onAsk={permission.requestPermission} onBack={onBack} />;
   }
 
   return (
     <View style={styles.screen}>
-      <CameraView ref={camera} style={{ height: 200 }} facing="back" />
+      <Camera style={{ height: 200 }} device="back" isActive outputs={[photoOutput]} />
       <ScrollView contentContainerStyle={styles.pad}>
         <Text style={styles.muted}>Kies een NIEUWE LEGE map. Fotografeer een voorwerp, nooit een patiënt.</Text>
         <Row>

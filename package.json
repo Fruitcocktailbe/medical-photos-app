@@ -3,10 +3,8 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@react-native-ml-kit/face-detection": "^2.0.1",
     "@react-native-ml-kit/text-recognition": "^2.0.0",
     "expo": "~57.0.26",
-    "expo-camera": "~57.0.6",
     "expo-dev-client": "~57.0.19",
     "expo-file-system": "~57.0.7",
     "expo-screen-capture": "~57.0.3",
@@ -14,7 +12,11 @@
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-nitro-image": "^0.15.2",
+    "react-native-nitro-modules": "^0.37.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-vision-camera": "^5.2.3",
+    "react-native-vision-camera-face-detector": "^2.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

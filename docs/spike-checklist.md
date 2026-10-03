@@ -20,7 +20,7 @@ npx expo start --dev-client
 
 Open the app on the phone; it connects to the PC on the same Wi-Fi.
 
-**Check 0 — native modules load.** Open spike (a) and press "Lees". If you get "doesn't seem to be linked" or nothing at all, the ML Kit New-Architecture risk is real: stop and report.
+**Check 0 — native modules load.** Open spike (a): the camera preview must appear (VisionCamera works). Press "Lees": if you get "doesn't seem to be linked" or no text at all, the OCR package's New-Architecture risk is real: stop and report. Open spike (b): numbers must move when a face is in view (face-detector output works).
 
 ## (a) Etiket lezen — target ≥ 95 % on labels
 
@@ -37,11 +37,11 @@ Report: the three percentages, typical ms, and for every "Fout" what went wrong 
 2. **Pitch/roll.** Chin up → pitch positive? Head tilted to the left shoulder → roll positive? Note yes/no.
 3. **Accuracy.** Put a protractor or a paper with 0/45/90° lines on the floor; person turns to each mark. Note the displayed yaw at 0, 45, 90 both sides. Does the face get lost near 90°?
 4. **Stability.** Person holds still for 10 s: how much does yaw wander?
-5. **Update rate.** Note "Update elke … ms".
+5. **Live rate and frame.** Note "Analyses per seconde" (expect well above 10) and "Frame (b×h)": the height must be larger than the width.
 6. **The reference rule.** Choose ¾ links, get to green, press **Leg vast als referentie**. Target switches to "REFERENTIE". Person walks away, comes back, and you guide them back to green with the hints alone. Does the second pose look like the first? How long did it take?
 7. **Phone tilt.** Hold the phone upright: pitch/roll ≈ 0? Tilt it: do the numbers move the expected way?
 
-Report: sign result, accuracy table, wander in °, ms per update, and how the rule felt in the hand.
+Report: sign result, accuracy table, wander in °, analyses per second, frame size, and how the rule felt in the hand.
 
 ## (c) Map kiezen — storage end to end
 

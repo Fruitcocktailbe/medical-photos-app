@@ -5,46 +5,49 @@
  */
 import { useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera, isScannedCode, useCameraPermission, useObjectOutput, usePhotoOutput } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
 import { parseLabel, type LabelParse } from '../core/identity/parseLabel';
 import { recognizeLines } from '../platform/vision';
-import { Button, Field, Row, colors, styles } from './ui';
+import { PHOTO_OUTPUT_OPTIONS, captureTempFile } from '../platform/camera';
+import { Button, CameraGate, Field, Row, colors, styles } from './ui';
 
 type Kind = 'etiket' | 'briefje' | 'scherm';
 type Tally = Record<Kind, { ok: number; bad: number }>;
 
 export function SpikeOcr({ onBack }: { onBack: () => void }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const camera = useRef<CameraView>(null);
+  const permission = useCameraPermission();
+  const photoOutput = usePhotoOutput(PHOTO_OUTPUT_OPTIONS);
   const barcodes = useRef<Set<string>>(new Set());
+  const objectOutput = useObjectOutput({
+    types: ['code-128', 'code-39', 'qr', 'data-matrix', 'pdf-417', 'ean-13', 'itf-14', 'interleaved-2-of-5'],
+    onObjectsScanned: (objects) => {
+      for (const o of objects) if (isScannedCode(o) && o.value) barcodes.current.add(o.value);
+    },
+  });
   const [kind, setKind] = useState<Kind>('etiket');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ parse: LabelParse; lines: string[]; ms: number; codes: string[] } | null>(null);
   const [tally, setTally] = useState<Tally>({ etiket: { ok: 0, bad: 0 }, briefje: { ok: 0, bad: 0 }, scherm: { ok: 0, bad: 0 } });
   const [showRaw, setShowRaw] = useState(false);
 
-  if (!permission) return null;
-  if (!permission.granted) {
-    return (
-      <View style={[styles.screen, styles.pad]}>
-        <Text style={styles.title}>Camera nodig</Text>
-        <Button title="Toestaan" onPress={requestPermission} />
-        <Button title="Terug" onPress={onBack} tone="muted" />
-      </View>
-    );
+  if (!permission.hasPermission) {
+    return <CameraGate granted={false} canAsk={permission.canRequestPermission} onAsk={permission.requestPermission} onBack={onBack} />;
   }
 
   const read = async () => {
-    if (!camera.current) return;
     setBusy(true);
     const t0 = Date.now();
     try {
-      const pic = await camera.current.takePictureAsync({ quality: 0.9, shutterSound: false });
-      const lines = await recognizeLines(pic.uri);
+      const uri = await captureTempFile(photoOutput);
+      let lines: string[] = [];
       try {
-        new File(pic.uri).delete(); // temp file in app cache; never kept
-      } catch {}
+        lines = await recognizeLines(uri);
+      } finally {
+        try {
+          new File(uri).delete(); // temp file in app cache; never kept
+        } catch {}
+      }
       const codes = [...barcodes.current];
       setResult({ parse: parseLabel({ lines, barcodes: codes }), lines, ms: Date.now() - t0, codes });
     } catch (e) {
@@ -70,13 +73,7 @@ export function SpikeOcr({ onBack }: { onBack: () => void }) {
 
   return (
     <View style={styles.screen}>
-      <CameraView
-        ref={camera}
-        style={{ height: 300 }}
-        facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ['code128', 'code39', 'qr', 'datamatrix', 'pdf417', 'ean13', 'itf14'] }}
-        onBarcodeScanned={(b) => barcodes.current.add(b.data)}
-      />
+      <Camera style={{ height: 300 }} device="back" isActive outputs={[photoOutput, objectOutput]} />
       <ScrollView contentContainerStyle={styles.pad}>
         <Row>
           {(['etiket', 'briefje', 'scherm'] as Kind[]).map((k) => (

@@ -18,7 +18,7 @@ Install the APK on the Android phone (allow "install unknown apps" for the brows
 npx expo start --dev-client
 ```
 
-Open the app on the phone; it connects to the PC on the same Wi-Fi.
+Open the app on the phone; it connects to the PC on the same Wi-Fi. Onboarding asks for a folder and the lock. The measurement screens below are under **Instellingen › Metingen**.
 
 **Check 0 — native modules load.** Open spike (a): the camera preview must appear (VisionCamera works). Press "Lees": if you get "doesn't seem to be linked" or no text at all, the OCR package's New-Architecture risk is real: stop and report. Open spike (b): numbers must move when a face is in view (face-detector output works).
 

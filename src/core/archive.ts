@@ -171,17 +171,28 @@ export class Archive {
 
   // ---------- episodes & sessions ----------
 
-  async startEpisode(patientId: string, region: Region, date = isoDate(this.now())): Promise<Episode> {
+  /**
+   * A new treatment. Usually only the region is known (consult, pre-op); a
+   * patient who enters the app already operated can start with the procedure
+   * and surgery date right away (UX decision U7).
+   */
+  async startEpisode(
+    patientId: string,
+    region: Region,
+    date = isoDate(this.now()),
+    opts: { procedure?: string | null; surgeryDate?: string | null } = {},
+  ): Promise<Episode> {
     const p = this.patient(patientId);
-    const draft = { startedAt: date, procedure: null, region };
+    const procedure = opts.procedure ?? null;
+    const draft = { startedAt: date, procedure, region };
     const siblings = this.episodesOf(patientId).map((e) => e.folderName);
     const episode: Episode = {
       id: `e_${this.id()}`,
       patientId,
       region,
-      procedure: null,
+      procedure,
       secondary: [],
-      surgeryDate: null,
+      surgeryDate: opts.surgeryDate ?? null,
       startedAt: date,
       folderName: uniqueName(episodeFolderName(draft), siblings),
     };
@@ -288,6 +299,40 @@ export class Archive {
     shot.annotatedFile = name;
     await this.writeJson([...path, 'session.json'], s);
     return name;
+  }
+
+  async setSurgeryDate(episodeId: string, surgeryDate: string | null) {
+    const e = this.episode(episodeId);
+    if (surgeryDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(surgeryDate)) throw new Error('OK-datum moet JJJJ-MM-DD zijn');
+    e.surgeryDate = surgeryDate;
+    await this.writeJson([...this.episodePath(e), 'episode.json'], e);
+  }
+
+  /** Bytes of a filed photo, for the ghost overlay and thumbnails of earlier sessions. */
+  async readShotBytes(sessionId: string, file: string): Promise<Uint8Array | null> {
+    return this.deps.storage.readBytes([...this.sessionPath(this.session(sessionId)), file]);
+  }
+
+  /** Delete one photo (and its drawn-on copy). Used by retake and delete in the thumbnail strip. */
+  async deleteShot(sessionId: string, file: string) {
+    const s = this.session(sessionId);
+    const shot = s.shots.find((x) => x.file === file);
+    if (!shot) throw new Error(`Unknown shot ${file}`);
+    const path = this.sessionPath(s);
+    await this.deps.storage.remove([...path, file]);
+    if (shot.annotatedFile) await this.deps.storage.remove([...path, shot.annotatedFile]);
+    s.shots = s.shots.filter((x) => x.file !== file);
+    await this.writeJson([...path, 'session.json'], s);
+  }
+
+  /** Remove a patient folder entirely. Only for the onboarding test run (demo patient). */
+  async removePatient(patientId: string) {
+    const p = this.patient(patientId);
+    await this.deps.storage.remove([p.folderName]);
+    const episodeIds = new Set(this.registry.episodes.filter((e) => e.patientId === patientId).map((e) => e.id));
+    this.registry.patients = this.registry.patients.filter((x) => x.id !== patientId);
+    this.registry.episodes = this.registry.episodes.filter((e) => !episodeIds.has(e.id));
+    this.registry.sessions = this.registry.sessions.filter((s) => s.patientId !== patientId);
   }
 
   // ---------- procedure, set once per episode, backfilled (PRD §6) ----------

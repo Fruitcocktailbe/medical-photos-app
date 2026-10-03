@@ -7,7 +7,7 @@ Android camera app for plastic-surgery clinical photography (working name).
 3. Shoot with live angle guidance. **Follow-ups are guided to the exact angle, distance and framing of the pre-op photo**, so before/after pairs match.
 4. Photos are named, tagged and filed in a folder you chose (Nextcloud, Drive, phone storage…). Never in the camera roll.
 
-**Status (03/10/2026):** spike build. The tested core is done (label parsing, naming, episodes and procedure backfill, the reference rule, guidance, tags in the JPEG, offline sync, index rebuild). Three spike screens measure what only the phone can tell us. Next step: `docs/spike-checklist.md`.
+**Status (03/10/2026):** first full flow, not yet run on a device. Onboarding, lock, scan, confirm, treatment, visit, guided capture and summary are built on the tested core (108 unit tests). The three measurement screens live under Settings › Metingen. Next step: build it for the phone and run `docs/spike-checklist.md`, then the test run in the app itself.
 
 ```bash
 npm install
@@ -18,6 +18,6 @@ npm run build:dev      # Android development build via EAS
 
 Stack: Expo / React Native (one codebase, Android now, iOS later), camera on VisionCamera 5, ML Kit on device.
 
-Docs: `AGENTS.md` (rules) · `docs/handoff-2026-10-03.md` (build brief) · `docs/architecture.md` · `docs/spike-checklist.md`. Product requirements live in the J.A.R.V.I.S cockpit (`projects/medical-photos-app/prd.md`).
+Docs: `docs/ux-flow.md` (how the app behaves) · `AGENTS.md` (rules) · `docs/handoff-2026-10-03.md` (build brief) · `docs/architecture.md` · `docs/spike-checklist.md`. Product requirements live in the J.A.R.V.I.S cockpit (`projects/medical-photos-app/prd.md`).
 
 Private. No patient data in this repository, ever.

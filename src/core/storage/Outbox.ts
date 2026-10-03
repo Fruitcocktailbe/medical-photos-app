@@ -28,8 +28,12 @@ export interface DrainResult {
 }
 
 /**
- * A StorageTarget that writes locally and syncs later. Reads go to the remote
- * unless a pending local write exists for that path.
+ * A StorageTarget that writes locally and syncs later.
+ *
+ * Reads and listings present a MERGED VIEW: the remote folder as it is, with
+ * every pending op applied on top (writes, new directories, renames, removes).
+ * So an index rebuilt after a restart with unsynced work — e.g. the cloud
+ * offline in a hospital basement — still sees every patient and session.
  */
 export class Outbox implements StorageTarget {
   private ops: Op[] | null = null;
@@ -58,9 +62,45 @@ export class Outbox implements StorageTarget {
     return (await this.load()).length;
   }
 
+  /** Apply the renames that come after op index `from` to a path recorded at that time. */
+  private forward(path: readonly string[], from: number): string[] {
+    let p = [...path];
+    for (const op of (this.ops ?? []).slice(from)) {
+      if (op.type === 'rename' && startsWith(p, op.path)) p = [...op.path.slice(0, -1), op.newName, ...p.slice(op.path.length)];
+    }
+    return p;
+  }
+
+  /** Map a current path back to the name it still has on the remote (undo pending renames). */
+  private remotePath(path: Path): string[] {
+    let p = [...path];
+    const ops = this.ops ?? [];
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const op = ops[i];
+      if (op.type !== 'rename') continue;
+      const renamed = [...op.path.slice(0, -1), op.newName];
+      if (startsWith(p, renamed)) p = [...op.path, ...p.slice(renamed.length)];
+    }
+    return p;
+  }
+
+  /** Is the item at current path `p`, created at op index `createdAt` (-1 = remote), removed by a later remove op? */
+  private removedAfter(p: readonly string[], createdAt: number): boolean {
+    const ops = this.ops ?? [];
+    for (let i = createdAt + 1; i < ops.length; i++) {
+      const op = ops[i];
+      if (op.type === 'remove' && startsWith(p, this.forward(op.path, i + 1))) return true;
+    }
+    return false;
+  }
+
   private pendingWrite(path: Path): Extract<Op, { type: 'write' }> | undefined {
-    const key = path.join('/');
-    return [...(this.ops ?? [])].reverse().find((o): o is Extract<Op, { type: 'write' }> => o.type === 'write' && o.path.join('/') === key);
+    const ops = this.ops ?? [];
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const op = ops[i];
+      if (op.type === 'write' && same(this.forward(op.path, i + 1), path)) return this.removedAfter(path, i) ? undefined : op;
+    }
+    return undefined;
   }
 
   async ensureDir(dir: Path) {
@@ -94,17 +134,42 @@ export class Outbox implements StorageTarget {
     await this.load();
     const w = this.pendingWrite(path);
     if (w) return this.local.readBytes([...BLOBS, w.blob]);
-    return this.remote.readBytes(path);
+    if (this.removedAfter(path, -1)) return null;
+    return this.remote.readBytes(this.remotePath(path));
   }
 
   async exists(path: Path) {
     await this.load();
-    return !!this.pendingWrite(path) || this.remote.exists(path);
+    if (this.pendingWrite(path)) return true;
+    if ((await this.list(path.slice(0, -1))).some((e) => e.name === path[path.length - 1])) return true;
+    return path.length === 0;
   }
 
   async list(dir: Path): Promise<Entry[]> {
-    // Listing is used for index rebuilds, which run against the remote after a drain.
-    return this.remote.list(dir);
+    const ops = await this.load();
+    const out = new Map<string, boolean>();
+    // Remote children, under their current names, minus pending removes.
+    const remoteDir = this.remotePath(dir);
+    let remoteEntries: Entry[] = [];
+    try {
+      remoteEntries = await this.remote.list(remoteDir);
+    } catch {
+      remoteEntries = []; // remote unreachable: the pending view still works
+    }
+    for (const e of remoteEntries) {
+      const current = this.forward([...remoteDir, e.name], 0);
+      if (same(current.slice(0, -1), dir) && !this.removedAfter(current, -1)) out.set(current[current.length - 1], e.isDirectory);
+    }
+    // Children created by pending ops.
+    ops.forEach((op, i) => {
+      if (op.type !== 'write' && op.type !== 'ensureDir') return;
+      const p = this.forward(op.path, i + 1);
+      if (p.length <= dir.length || !startsWith(p, dir) || this.removedAfter(p, i)) return;
+      const name = p[dir.length];
+      const isDir = op.type === 'ensureDir' || p.length > dir.length + 1;
+      out.set(name, (out.get(name) ?? false) || isDir);
+    });
+    return [...out.entries()].map(([name, isDirectory]) => ({ name, isDirectory }));
   }
 
   /** Replay pending ops against the remote, oldest first. Stops at the first failure. */
@@ -144,10 +209,19 @@ export class Outbox implements StorageTarget {
       case 'rename': {
         const renamed = [...op.path.slice(0, -1), op.newName];
         if (await this.remote.exists(renamed)) return; // already applied before a crash
+        if (!(await this.remote.exists(op.path))) return; // nothing to rename (never synced, or removed)
         return this.remote.rename(op.path, op.newName);
       }
       case 'remove':
         if (await this.remote.exists(op.path)) await this.remote.remove(op.path);
     }
   }
+}
+
+function startsWith(p: readonly string[], prefix: readonly string[]): boolean {
+  return prefix.length <= p.length && prefix.every((x, i) => p[i] === x);
+}
+
+function same(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && startsWith(a, b);
 }

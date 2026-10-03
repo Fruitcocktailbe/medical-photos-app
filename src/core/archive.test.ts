@@ -230,3 +230,82 @@ describe('helpers', () => {
     expect(levenshtein('janssens', 'janssen')).toBe(1);
   });
 });
+
+describe('Archive — UX flow operations', () => {
+  it('starts a treatment already operated, with procedure and surgery date (U7)', async () => {
+    const a = await Archive.open(deps(new MemoryTarget()));
+    const p = await a.createPatient({ surname: 'A', firstName: 'B', dob: '1990-01-01' });
+    const e = await a.startEpisode(p.id, 'breast', undefined, { procedure: 'mastopexy', surgeryDate: '2026-08-20' });
+    expect(e).toMatchObject({ procedure: 'mastopexy', surgeryDate: '2026-08-20', folderName: '2026-10_mastopexy' });
+    await a.setSurgeryDate(e.id, '2026-08-21');
+    expect(a.episode(e.id).surgeryDate).toBe('2026-08-21');
+    await expect(a.setSurgeryDate(e.id, '21/08/2026')).rejects.toThrow(/JJJJ/);
+  });
+
+  it('deletes a shot so it can be retaken with the next index', async () => {
+    const remote = new MemoryTarget();
+    const a = await Archive.open(deps(remote));
+    const p = await a.createPatient({ surname: 'A', firstName: 'B', dob: '1990-01-01' });
+    const e = await a.startEpisode(p.id, 'face');
+    const s = await a.startSession(e.id, 'preop');
+    const first = await a.fileShot(s.id, { bytes: jpeg(1), view: 'frontal', viewSource: 'auto' });
+    await a.deleteShot(s.id, first.file);
+    expect(a.session(s.id).shots).toEqual([]);
+    expect(remote.dump().some((f) => f.endsWith(first.file))).toBe(false);
+    const again = await a.fileShot(s.id, { bytes: jpeg(2), view: 'frontal', viewSource: 'auto' });
+    expect(again.index).toBe(1);
+  });
+
+  it('removes the demo patient completely', async () => {
+    const remote = new MemoryTarget();
+    const a = await Archive.open(deps(remote));
+    const p = await a.createPatient({ surname: 'Demo', firstName: 'Proef', dob: '2000-01-01' });
+    const e = await a.startEpisode(p.id, 'other');
+    await a.startSession(e.id, 'consult');
+    await a.removePatient(p.id);
+    expect(remote.dump()).toEqual([]);
+    expect(a.registry).toEqual({ patients: [], episodes: [], sessions: [] });
+  });
+});
+
+describe('Outbox — merged view while offline', () => {
+  it('a restart with unsynced work still sees every patient, rename and retake', async () => {
+    const local = new MemoryTarget();
+    const remote = new MemoryTarget();
+    // Day 1, online: a patient with a synced pre-op.
+    const a1 = await Archive.open(deps(new Outbox(local, remote) as never));
+    const p = await a1.createPatient({ surname: 'Janssens', firstName: 'Marie', dob: '1985-03-12' });
+    const e = await a1.startEpisode(p.id, 'breast');
+    const pre = await a1.startSession(e.id, 'preop');
+    await a1.fileShot(pre.id, { bytes: jpeg(1), view: 'AP', viewSource: 'manual' });
+    expect((await new Outbox(local, remote).drain()).remaining).toBe(0);
+
+    // Day 2, cloud offline: surgery sets the procedure (rename pending), a new patient, a retake.
+    remote.failNext = 0;
+    const a2 = await Archive.open(deps(new Outbox(local, remote) as never));
+    await a2.setProcedure(e.id, 'breast-augmentation');
+    const q = await a2.createPatient({ surname: 'Peeters', firstName: 'Jan', dob: '1950-06-23' });
+    const qe = await a2.startEpisode(q.id, 'face');
+    const qs = await a2.startSession(qe.id, 'consult');
+    const shot = await a2.fileShot(qs.id, { bytes: jpeg(2), view: 'frontal', viewSource: 'manual' });
+    await a2.deleteShot(qs.id, shot.file);
+    await a2.fileShot(qs.id, { bytes: jpeg(3), view: 'frontal', viewSource: 'manual' });
+
+    // App killed and restarted while still offline: the rebuilt index sees everything.
+    const a3 = await Archive.open(deps(new Outbox(local, remote) as never));
+    expect(a3.problems).toEqual([]);
+    expect(a3.registry.patients.map((x) => x.surname).sort()).toEqual(['Janssens', 'Peeters']);
+    expect(a3.episode(e.id).folderName).toBe('2026-10_breast-augmentation');
+    expect(a3.session(pre.id).shots).toHaveLength(1);
+    expect(a3.session(qs.id).shots.map((x) => x.file)).toEqual(['20261003_consult_frontal_01.jpg']);
+    expect(a3.matchPatients({ surname: 'Peeters', firstName: 'Jan', dob: '1950-06-23' })[0].kind).toBe('exact');
+    const retaken = await new Outbox(local, remote).readBytes(['Peeters_Jan_1950-06-23', '2026-10_face', '2026-10-03_consult', '20261003_consult_frontal_01.jpg']);
+    expect(retaken![retaken!.length - 3]).toBe(3); // the retake (jpeg(3)), not the deleted jpeg(2)
+
+    // Back online: one drain makes the folder match the view.
+    expect((await new Outbox(local, remote).drain()).remaining).toBe(0);
+    const fromFolder = await rebuildIndex(remote);
+    expect(fromFolder.registry).toEqual(a3.registry);
+    expect(remote.dump().filter((f) => f.includes('consult_frontal'))).toEqual(['Peeters_Jan_1950-06-23/2026-10_face/2026-10-03_consult/20261003_consult_frontal_01.jpg']);
+  });
+});

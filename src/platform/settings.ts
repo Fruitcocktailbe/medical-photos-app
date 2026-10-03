@@ -1,8 +1,14 @@
-/** Tiny persisted settings (folder URI, detector sign fixes) in app-private storage. */
+/** Tiny persisted settings in app-private storage (never patient data). */
 import { File, Paths } from 'expo-file-system';
 
 export interface Settings {
+  /** SAF URI of the folder the archive lives in. */
   rootUri?: string;
+  onboardingDone?: boolean;
+  lockEnabled?: boolean;
+  /** Ghost overlay of the reference photo in the capture screen (remembered). */
+  ghostOn?: boolean;
+  /** Detector sign fix found in spike (b). */
   yawInverted?: boolean;
 }
 

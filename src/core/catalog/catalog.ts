@@ -54,6 +54,8 @@ export const VIEWS: Record<ViewId, ViewDef> = {
   'hand-lateral': { id: 'hand-lateral', label: 'Lateraal', yaw: 0, detect: 'manual' },
   fist: { id: 'fist', label: 'Vuist', yaw: 0, detect: 'manual' },
   extension: { id: 'extension', label: 'Extensie', yaw: 0, detect: 'manual' },
+  // Anything outside the set, intra-op photos, and regions without a set.
+  free: { id: 'free', label: 'Vrij', yaw: 0, detect: 'manual' },
 };
 
 export const REGION_VIEWS: Record<Region, ViewId[]> = {
@@ -61,7 +63,7 @@ export const REGION_VIEWS: Record<Region, ViewId[]> = {
   breast: ['AP', 'AP-arms-up', 'body-oblique-L', 'body-oblique-R', 'body-lateral-L', 'body-lateral-R'],
   body: ['AP', 'PA', 'body-lateral-L', 'body-lateral-R', 'body-oblique-L', 'body-oblique-R'],
   hand: ['dorsal', 'volar', 'hand-lateral', 'fist', 'extension'],
-  other: [],
+  other: ['free'],
 };
 
 export const REGION_LABELS: Record<Region, string> = {
@@ -120,6 +122,11 @@ export function viewSet(region: Region, procedureId: string | null): ViewId[] {
   if (proc?.views) return proc.views;
   const base = REGION_VIEWS[proc?.region ?? region];
   return proc?.extraViews ? [...base, ...proc.extraViews.filter((v) => !base.includes(v))] : base;
+}
+
+/** Views to walk through in a session: intra-op is free mode only (PRD Q21). */
+export function viewSetForVisit(region: Region, procedureId: string | null, visit: string): ViewId[] {
+  return visit === 'intraop' ? ['free'] : viewSet(region, procedureId);
 }
 
 /** Procedures for a picker: favourites first, then the region's, then the rest. */

@@ -40,7 +40,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sensors"
+      "expo-sensors",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Face ID beveiligt de patiëntfoto’s in deze app."
+        }
+      ]
     ]
   }
 }

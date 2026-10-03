@@ -95,6 +95,19 @@ describe('reference rule: textbook on a first visit, pre-op geometry on follow-u
     expect(resolveTarget('frontal', episode, [other, later], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');
   });
 
+  it('patient entered the app already post-op: the first documented visit is the baseline', () => {
+    const post6w = session('p6', '2026-11-14', 'postop', [shot('lateral-L', 1, geo(86))], { interval: '6w' });
+    const post3m = session('p3', '2027-01-10', 'postop', [shot('lateral-L', 1, geo(95))], { interval: '3m' });
+    const t = resolveTarget('lateral-L', episode, [post3m, post6w], { id: 'p1y', date: '2027-10-01' });
+    expect(t.source).toBe('reference');
+    expect(t.reference?.sessionId).toBe('p6');
+    expect(t.geometry.yaw).toBe(86);
+  });
+
+  it('the very first documented visit still gets the textbook target', () => {
+    expect(resolveTarget('lateral-L', episode, [], { id: 'p6', date: '2026-11-14' }).source).toBe('textbook');
+  });
+
   it('a pre-op without the requested view does not become the reference', () => {
     const pre = session('pre', '2026-10-03', 'preop', [shot('frontal', 1, geo(0))]);
     expect(resolveTarget('lateral-R', episode, [pre], { id: 'x', date: '2026-12-01' }).source).toBe('textbook');

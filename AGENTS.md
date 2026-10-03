@@ -19,7 +19,11 @@ Android camera app for plastic-surgery clinical photography (working name). Scan
 - `src/platform/` — device adapters: VisionCamera 5 camera layer (`camera.ts`), on-device OCR, SAF storage, motion. Verified on the device only.
 
 **Stack (decided 03/10, logged in the cockpit):** one Expo/React Native codebase for Android now and iOS later. Camera = `react-native-vision-camera` 5 (Nitro). Its API is hook-and-output based (`usePhotoOutput`, `useObjectOutput`, `useFaceDetectorOutput`), unlike v3/v4 tutorials; read the installed typings before using it. A community plugin that fails is replaced by our own thin native plugin (Kotlin + Swift), not by switching stacks.
-- `src/spike/` + `App.tsx` — throwaway spike screens. The MVP replaces them and adopts Expo Router.
+- `src/core/flow/` — navigation as a pure, tested state machine (no Expo Router; reasons in `docs/architecture.md`).
+- `src/app/` (archive provider) · `src/screens/` (one file per screen, behaviour in `docs/ux-flow.md`) · `src/ui/` (kit, labels).
+- `src/spike/` — the three measurement screens, reachable via Settings › Metingen.
+
+**UX source of truth:** `docs/ux-flow.md`. Change behaviour there first, then the screens.
 
 ## Commands
 

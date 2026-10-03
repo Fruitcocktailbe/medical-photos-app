@@ -8,7 +8,10 @@
  * Reference session, in order of preference:
  *   1. episode.referenceSessionId (manual override), if it holds that view;
  *   2. the latest PRE-OP session before the current one that holds that view;
- *   3. the latest CONSULT session before the current one that holds that view.
+ *   3. the latest CONSULT session before the current one that holds that view;
+ *   4. the EARLIEST earlier session that holds that view — for patients who
+ *      entered the app already operated (UX decision U7, 03/10): their first
+ *      documented visit becomes the baseline every later visit matches.
  * Reference shot within that session: the one marked isReference, else the
  * last one taken of that view (usually the keeper).
  *
@@ -128,7 +131,7 @@ export function findReferenceShot(
     if (forced) return pick(forced);
   }
   const latest = (visit: Session['visit']) => [...earlier].reverse().find((s) => s.visit === visit);
-  return pick(latest('preop')) ?? pick(latest('consult'));
+  return pick(latest('preop')) ?? pick(latest('consult')) ?? pick(earlier[0]);
 }
 
 export function resolveTarget(

@@ -78,6 +78,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
     onError: () => undefined,
   });
 
+  const outputs = useMemo(() => [faceOutput], [faceOutput]);
   useEffect(() => {
     const t = setInterval(() => setSnap({ ...latest.current }), 100);
     return () => clearInterval(t);
@@ -105,7 +106,7 @@ export function SpikeYaw({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.screen}>
       <View style={{ height: 320, borderWidth: 8, borderColor: ring }}>
-        <Camera style={{ flex: 1 }} device="back" isActive={running} outputs={[faceOutput]} />
+        <Camera style={{ flex: 1 }} device="back" isActive={running} outputs={outputs} />
       </View>
       <ScrollView contentContainerStyle={styles.pad}>
         <Text style={[styles.title, { color: ring }]}>
